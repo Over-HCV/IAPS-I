@@ -38,6 +38,7 @@ def save_session(session_id: str) -> bool:
         session_data = {
             "session_id": session_id,
             "created_at": datetime.now().isoformat(),
+            "active_dataset": st.session_state.get("active_dataset", ""),
             "dataset_config": st.session_state.get("dataset_config", {}),
             # Libraries
             "model_library": st.session_state.get("model_library", []),
@@ -87,6 +88,7 @@ def load_session(session_id: str) -> bool:
 
         # Restore workflow state
         st.session_state.session_id = session_data.get("session_id", session_id)
+        st.session_state.active_dataset = session_data.get("active_dataset", "")
         st.session_state.dataset_config = session_data.get("dataset_config", {})
         # Libraries
         st.session_state.model_library = session_data.get("model_library", [])

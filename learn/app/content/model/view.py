@@ -235,11 +235,11 @@ def _render_save_to_library(model_name: str, model_config: dict, is_new: bool):
         ):
             if is_new:
                 add_model_to_library(model_name.strip(), model_config)
-                st.success(f"Model '{model_name}' saved to library!")
+                st.success(f"Model '{model_name}' saved to library")
             else:
                 model_id = st.session_state.model_editor_mode
                 update_model_in_library(model_id, model_name.strip(), model_config)
-                st.success(f"Model '{model_name}' updated!")
+                st.success(f"Model '{model_name}' updated")
 
             st.session_state.model_editor_mode = None
             st.rerun()

@@ -1,10 +1,9 @@
 """Data loading utilities for interpretability."""
 
-from pathlib import Path
-
 from state.persistence import get_dataset_config_from_file
 from state.workflow import get_session_id
 from training.dataset import create_dataloaders, create_splits, scan_dataset
+from utils.dataset_registry import resolve_dataset_path
 
 
 def get_test_dataloader(batch_size: int = 32, num_workers: int = 2):
@@ -42,9 +41,9 @@ def get_test_samples(n_samples: int = 10) -> list[dict]:
     if not dataset_config:
         return []
 
-    dataset_path = Path(dataset_config.get("dataset_path", "dataset"))
-    if not dataset_path.is_absolute():
-        dataset_path = Path.cwd() / dataset_path
+    dataset_path = resolve_dataset_path(dataset_config)
+    if not dataset_path.is_dir():
+        return []
 
     selected_families = dataset_config.get("selected_families")
     image_paths, labels, class_names = scan_dataset(dataset_path, selected_families)

@@ -7,7 +7,9 @@ from PIL import Image
 from sklearn.model_selection import train_test_split
 import torch
 from torch.utils.data import DataLoader, Dataset, WeightedRandomSampler
+
 from training.transforms import create_train_transforms, create_val_transforms
+from utils.dataset_registry import resolve_dataset_path
 
 
 class MalwareDataset(Dataset):
@@ -140,9 +142,9 @@ def create_dataloaders(
         class_weights: Tensor of class weights (if using class weighting)
     """
     # Get dataset path
-    dataset_path = Path(dataset_config.get("dataset_path", "dataset"))
-    if not dataset_path.is_absolute():
-        dataset_path = Path.cwd() / dataset_path
+    dataset_path = resolve_dataset_path(dataset_config)
+    if not dataset_path.is_dir():
+        raise FileNotFoundError(f"Dataset directory not found: {dataset_path}")
 
     selected_families = dataset_config.get("selected_families")
 

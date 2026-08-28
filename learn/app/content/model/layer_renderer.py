@@ -52,7 +52,7 @@ def render_preset_selector():
 
     # Show preset description
     if selected in PRESETS:
-        st.caption(f"📋 {PRESETS[selected]['description']}")
+        st.caption(PRESETS[selected]["description"])
 
 
 def render_add_layer_section():
@@ -83,7 +83,7 @@ def render_add_layer_section():
 
     # Show layer description
     if selected_type in LAYER_TYPES:
-        st.caption(f"ℹ️ {LAYER_TYPES[selected_type]['description']}")
+        st.caption(LAYER_TYPES[selected_type]["description"])
 
 
 def render_layer_card(layer: dict, index: int, total_layers: int):
@@ -220,7 +220,7 @@ def render_layer_stack():
     layer_stack = get_layer_stack()
 
     if not layer_stack:
-        st.info("📭 Layer stack is empty. Add layers or load a preset.")
+        st.info("Layer stack is empty. Add layers or load a preset.")
         return
 
     st.subheader(f"Layer Stack ({len(layer_stack)} layers)")
@@ -279,9 +279,9 @@ def render_validation_status():
     is_valid, errors = validate_layer_stack(layer_stack)
 
     if is_valid:
-        st.success("✅ Architecture is valid")
+        st.success("Architecture is valid")
     else:
-        st.error("❌ Architecture has issues:")
+        st.error("Architecture has issues:")
         for error in errors:
             st.write(f"  • {error}")
 

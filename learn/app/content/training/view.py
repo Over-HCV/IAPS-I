@@ -323,7 +323,7 @@ def _render_save_section(config: dict):
             type="primary" if not is_editing else "secondary",
         ):
             add_training_to_library(name, config)
-            st.success(f"Config '{name}' saved!")
+            st.success(f"Config '{name}' saved")
             st.session_state.training_config_name = ""
             st.session_state.training_selected_id = None
             st.rerun()
@@ -334,5 +334,5 @@ def _render_save_section(config: dict):
                 update_training_in_library(
                     st.session_state.training_selected_id, name, config
                 )
-                st.success(f"Config '{name}' updated!")
+                st.success(f"Config '{name}' updated")
                 st.rerun()

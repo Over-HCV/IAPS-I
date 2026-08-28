@@ -804,3 +804,11 @@ __marimo__/
 .mtc
 *.synctex(busy)
 build/
+
+# Datasets registered by the app (learn/app/data/<name>/<class>/*.png).
+# A bare `data` rule above excludes the directory itself, and git will not
+# descend into an excluded directory - so re-include it before excluding its
+# contents, otherwise the .gitkeep exception can never match.
+!learn/app/data/
+learn/app/data/*
+!learn/app/data/.gitkeep

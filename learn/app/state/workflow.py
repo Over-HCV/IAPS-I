@@ -34,6 +34,7 @@ class WorkflowState(TypedDict, total=False):
     """Type definition for workflow state fields"""
 
     session_id: str
+    active_dataset: str
     dataset_config: dict[str, Any]
 
     # Libraries (multiple saved configs)
@@ -69,6 +70,9 @@ def init_workflow_state() -> None:
 
         # No persisted session or load failed - create new session with bird name
         st.session_state.session_id = generate_session_id()
+
+    if "active_dataset" not in st.session_state:
+        st.session_state.active_dataset = _default_dataset_name()
 
     if "dataset_config" not in st.session_state:
         st.session_state.dataset_config = {}
@@ -113,6 +117,56 @@ def generate_session_id() -> str:
 def get_session_id() -> str:
     """Get current session ID (bird-based name)"""
     return st.session_state.get("session_id", "")
+
+
+# Active Dataset
+def _default_dataset_name() -> str:
+    """Pick the dataset a fresh session should start on"""
+    from utils.dataset_registry import default_dataset_name
+
+    return default_dataset_name()
+
+
+def get_active_dataset() -> str:
+    """Get the name of the currently selected dataset"""
+    return st.session_state.get("active_dataset", "")
+
+
+def set_active_dataset(name: str) -> None:
+    """Select a dataset and drop every cache keyed to the previous one.
+
+    The class list, the sample gallery and the per-class weight widgets all
+    belong to a specific dataset, so they must go when the selection changes.
+    """
+    if st.session_state.get("active_dataset") == name:
+        return
+
+    st.session_state.active_dataset = name
+    _clear_dataset_scoped_state()
+    _auto_save()
+
+
+def _clear_dataset_scoped_state() -> None:
+    """Remove cached scan results and widget state tied to a dataset"""
+    from state.cache import clear_dataset_info
+
+    clear_dataset_info()
+
+    keys_to_clear = [
+        "selected_classes",
+        "gallery_samples",
+        "minority_classes",
+        "majority_classes",
+        "class_weights",
+        "_dataset_config_loaded",
+    ]
+    keys_to_clear.extend(
+        key for key in st.session_state if key.startswith("weight_")
+    )
+
+    for key in keys_to_clear:
+        if key in st.session_state:
+            del st.session_state[key]
 
 
 # Dataset Configuration
@@ -420,6 +474,7 @@ def clear_workflow_state() -> None:
     """Clear workflow-related session state"""
     keys_to_clear = [
         "session_id",
+        "active_dataset",
         "dataset_config",
         "model_library",
         "training_library",

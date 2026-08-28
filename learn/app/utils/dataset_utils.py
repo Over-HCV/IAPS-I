@@ -6,12 +6,18 @@ from pathlib import Path
 
 from PIL import Image
 
-# Dataset paths relative to project root
-DATASET_ROOT = Path(__file__).parent.parent.parent / "dataset"
+from utils.dataset_registry import IMAGE_SUFFIXES
 
 
-def scan_dataset():
-    """Scan dataset directory"""
+def scan_dataset(dataset_path: Path):
+    """Scan one image dataset directory, treating its subfolders as classes.
+
+    Args:
+        dataset_path: Absolute path to the dataset directory
+
+    Returns:
+        dict with per-class counts, class names, total samples and preview paths
+    """
     dataset_info = {
         "samples": {},
         "classes": [],
@@ -19,20 +25,30 @@ def scan_dataset():
         "sample_paths": {},
     }
 
-    # Scan dataset directory
-    if DATASET_ROOT.exists():
-        for class_dir in sorted(DATASET_ROOT.iterdir()):
-            if class_dir.is_dir() and not class_dir.name.startswith('.'):
-                images = list(class_dir.glob("*.png"))
-                class_name = class_dir.name
-                
-                if images:
-                    dataset_info["samples"][class_name] = len(images)
-                    dataset_info["total_samples"] += len(images)
-                    dataset_info["classes"].append(class_name)
-                    
-                    # Store sample paths for visualization
-                    dataset_info["sample_paths"][class_name] = images[:10]
+    if not dataset_path.is_dir():
+        return dataset_info
+
+    for class_dir in sorted(dataset_path.iterdir()):
+        if not class_dir.is_dir() or class_dir.name.startswith("."):
+            continue
+
+        # Same suffix set the training scanner accepts, so the counts shown in
+        # the UI match the number of images actually loaded for training.
+        images = sorted(
+            path
+            for path in class_dir.iterdir()
+            if path.is_file() and path.suffix.lower() in IMAGE_SUFFIXES
+        )
+        if not images:
+            continue
+
+        class_name = class_dir.name
+        dataset_info["samples"][class_name] = len(images)
+        dataset_info["total_samples"] += len(images)
+        dataset_info["classes"].append(class_name)
+
+        # Store sample paths for visualization
+        dataset_info["sample_paths"][class_name] = images[:10]
 
     return dataset_info
 
@@ -60,5 +76,5 @@ def get_image_dimensions(img_path):
     try:
         with Image.open(img_path) as img:
             return img.size  # (width, height)
-    except:
+    except Exception:
         return None

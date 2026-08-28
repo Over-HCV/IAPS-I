@@ -5,9 +5,6 @@ BFS Level: Define constants, no implementation
 
 from pathlib import Path
 
-# Dataset paths
-DATASET_ROOT = Path("dataset")
-
 # Default training parameters
 DEFAULT_TRAIN_SPLIT = 70
 DEFAULT_VAL_SPLIT = 15

@@ -133,7 +133,7 @@ def render_save(model_config: dict[str, Any]):
 
     with col1:
         if is_valid:
-            st.success("Model configuration is ready!")
+            st.success("Model configuration is ready")
         else:
             st.warning("Fix validation errors before saving")
 
@@ -148,7 +148,4 @@ def render_save(model_config: dict[str, Any]):
             disabled=not is_valid,
         ):
             save_model_config(model_config)
-            st.success("Model configuration saved!")
-            st.balloons()
-
-            st.info("You can now proceed to Training Configuration")
+            st.success("Model configuration saved. Continue on the Training page.")

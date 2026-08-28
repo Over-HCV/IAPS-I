@@ -32,7 +32,7 @@ def render_header():
     col1, _ = st.columns([3, 1])
 
     with col1:
-        st.markdown("### Malware Classification 👾")
+        st.markdown("### Machine Learning Tool")
 
     # Row 2: Configuration status + session controls
     status_col, sessions_col, button_col = st.columns([2, 1, 1])

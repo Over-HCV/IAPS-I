@@ -33,7 +33,7 @@ def render_misclassifications(exp_id: str):
                 )
 
                 if not misclassified:
-                    st.success("No misclassifications found in the test set!")
+                    st.success("No misclassifications in the test set")
                     return
 
                 st.session_state["misclassified_samples"] = misclassified

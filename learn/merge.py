@@ -7,7 +7,9 @@ from tqdm import tqdm
 def merge_dataset():
     # Configuration
     repo_path = Path("repo")
-    target_path = Path("dataset")
+    # Write into the app's dataset registry so the merged result shows up in the
+    # Dataset page picker (learn/app/data/<name>/<class>/).
+    target_path = Path(__file__).parent / "app" / "data" / "merged"
 
     # Source directories to merge
     source_dirs = ["training", "validation", "test"]
