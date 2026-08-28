@@ -1,0 +1,158 @@
+\chapter{Introducción}
+\label{chap:introduction}
+
+% =============================================================================
+\section{Contexto y Motivación}
+\label{sec:intro:context}
+
+% TODO: Expandir con estadísticas actuales sobre amenazas de malware
+El panorama de la ciberseguridad contemporánea enfrenta desafíos sin precedentes. El incremento exponencial en el volumen y sofisticación de software malicioso (malware) representa una amenaza crítica para sistemas informáticos, infraestructuras críticas, y la seguridad digital de organizaciones e individuos. Según reportes recientes de la industria, se detectan millones de nuevas variantes de malware cada año, con atacantes desarrollando técnicas cada vez más evasivas que desafían los métodos tradicionales de detección.
+
+Los sistemas antivirus convencionales se basan principalmente en firmas estáticas y análisis heurístico, métodos que resultan insuficientes ante el polimorfismo y la ofuscación empleada por malware moderno. Esta limitación motiva la búsqueda de enfoques innovadores que puedan adaptarse dinámicamente a nuevas amenazas sin depender exclusivamente de bases de datos de firmas conocidas.
+
+% =============================================================================
+\section{Problema de Investigación}
+\label{sec:intro:problem}
+
+% TODO: Ajustar con estadísticas específicas de los datasets utilizados
+La detección y clasificación efectiva de malware presenta múltiples desafíos técnicos:
+
+\begin{itemize}
+    \item \textbf{Volumen y velocidad:} La generación masiva de nuevas variantes de malware supera la capacidad de análisis manual.
+    \item \textbf{Polimorfismo y ofuscación:} Las técnicas de evasión modifican el código sin alterar su funcionalidad maliciosa, evadiendo detección basada en firmas.
+    \item \textbf{Variabilidad intra-familia:} Múltiples variantes dentro de una misma familia de malware pueden presentar diferencias significativas en su código.
+    \item \textbf{Costo computacional:} El análisis dinámico mediante sandboxing requiere recursos significativos y tiempo de ejecución.
+\end{itemize}
+
+Estos desafíos plantean la necesidad de desarrollar métodos automatizados, eficientes y robustos capaces de identificar y clasificar malware con alta precisión, incluso ante muestras previamente no vistas.
+
+% =============================================================================
+\section{Hipótesis de Investigación}
+\label{sec:intro:hypotheses}
+
+Este proyecto plantea tres hipótesis específicas y cuantificables que serán verificadas experimentalmente:
+
+\subsection{H1: Comparación de Arquitecturas de Deep Learning}
+
+\begin{quote}
+    \textit{En la tarea de clasificación de malware sobre el dataset MalImg, un modelo ResNet50 pre-entrenado en ImageNet con fine-tuning superará tanto a una CNN custom como a un Vision Transformer (ViT-Small) en accuracy y F1-score macro, debido a las características de bajo nivel transferibles desde ImageNet y el tamaño limitado del dataset de malware.}
+\end{quote}
+
+\textbf{Variables:}
+\begin{itemize}
+    \item \textbf{Independiente:} Arquitectura del modelo (CNN custom, ResNet50 fine-tuned, ViT-Small)
+    \item \textbf{Dependientes:} Accuracy, F1-score macro, épocas hasta convergencia, tiempo de entrenamiento
+    \item \textbf{Control:} Dataset (MalImg), épocas máximas, early stopping, learning rate base
+\end{itemize}
+
+\subsection{H2: Impacto de Data Augmentation en Clases Minoritarias}
+
+\begin{quote}
+    \textit{La aplicación de data augmentation moderada (rotación, flip horizontal, variación de brillo/contraste) mejorará significativamente el recall de las familias de malware con menor representación, sin degradar sustancialmente el accuracy global del modelo.}
+\end{quote}
+
+\textbf{Variables:}
+\begin{itemize}
+    \item \textbf{Independiente:} Aplicación de data augmentation (con/sin)
+    \item \textbf{Dependientes:} Recall de clases minoritarias, accuracy global, F1-score macro
+    \item \textbf{Control:} Arquitectura (mejor modelo de H1), hiperparámetros de entrenamiento
+\end{itemize}
+
+\subsection{H3: Efecto de la Profundidad en CNN Custom}
+
+\begin{quote}
+    \textit{Incrementar la profundidad de una CNN custom (de 3 a 5 bloques convolucionales) mejorará el rendimiento del modelo en términos de F1-score macro, pero con rendimientos decrecientes y mayor costo computacional.}
+\end{quote}
+
+\textbf{Variables:}
+\begin{itemize}
+    \item \textbf{Independiente:} Número de bloques convolucionales (3 vs 5)
+    \item \textbf{Dependientes:} F1-score macro, accuracy, tiempo de entrenamiento
+    \item \textbf{Control:} Dataset, batch size, learning rate, número máximo de épocas
+\end{itemize}
+
+% =============================================================================
+\section{Objetivos}
+\label{sec:intro:objectives}
+
+\subsection{Objetivo General}
+
+Desarrollar e implementar un sistema de clasificación de malware basado en Deep Learning que utilice representaciones visuales de ejecutables para identificar automáticamente familias de malware con alta precisión y eficiencia.
+
+\subsection{Objetivos Específicos}
+
+Los siguientes objetivos están diseñados para verificar las hipótesis planteadas:
+
+\begin{enumerate}
+    \item \textbf{Preparación de datos:} Preprocesar el dataset MalImg, implementando el pipeline de conversión de ejecutables a representaciones visuales con normalización a 224$\times$224 píxeles y partición estratificada (70\% entrenamiento, 15\% validación, 15\% prueba).
+
+    \item \textbf{Implementación de arquitecturas (H1):} Diseñar e implementar tres arquitecturas de clasificación:
+    \begin{itemize}
+        \item CNN custom con configuración de 5 bloques convolucionales
+        \item ResNet50 pre-entrenado con estrategia de fine-tuning parcial
+        \item Vision Transformer (ViT-Small) adaptado para imágenes de malware
+    \end{itemize}
+
+    \item \textbf{Experimento de arquitecturas (H1):} Entrenar y evaluar las tres arquitecturas bajo condiciones controladas, comparando accuracy, F1-score macro, tiempo de convergencia y número de parámetros.
+
+    \item \textbf{Experimento de augmentation (H2):} Evaluar el impacto de data augmentation moderada sobre el recall de clases minoritarias, utilizando la mejor arquitectura identificada en H1.
+
+    \item \textbf{Experimento de profundidad (H3):} Comparar el rendimiento de CNN custom con 3 vs 5 bloques convolucionales, analizando el trade-off entre F1-score y tiempo de entrenamiento.
+
+    \item \textbf{Análisis e interpretación:} Generar visualizaciones de características aprendidas (mapas de activación, t-SNE) para interpretar qué patrones estructurales distinguen las familias de malware.
+\end{enumerate}
+
+% =============================================================================
+\section{Justificación}
+\label{sec:intro:justification}
+
+% TODO: Agregar referencias bibliográficas específicas
+La adopción de técnicas de Deep Learning para análisis de malware se justifica por múltiples razones:
+
+\textbf{Capacidad de aprendizaje automático de características:} A diferencia de métodos tradicionales que requieren ingeniería manual de características, las CNN aprenden automáticamente representaciones jerárquicas discriminativas directamente de los datos crudos.
+
+\textbf{Escalabilidad:} Una vez entrenado, el modelo puede clasificar nuevas muestras en tiempo prácticamente real, permitiendo procesar grandes volúmenes de datos.
+
+\textbf{Robustez ante variaciones:} Las características visuales capturadas por CNN pueden ser invariantes a ciertas técnicas de ofuscación que alteran el código pero preservan estructuras fundamentales.
+
+\textbf{Transferibilidad:} Los modelos entrenados en ciertos datasets pueden adaptarse (fine-tuning) a nuevos conjuntos de datos con menor costo computacional.
+
+\textbf{Aplicabilidad práctica:} El enfoque propuesto puede integrarse en sistemas reales de detección de amenazas, análisis forense digital, y respuesta a incidentes de seguridad.
+
+% =============================================================================
+\section{Alcance y Limitaciones}
+\label{sec:intro:scope}
+
+\subsection{Alcance}
+
+Este proyecto se enfoca específicamente en:
+\begin{itemize}
+    \item Clasificación de familias de malware conocidas presentes en los datasets seleccionados
+    \item Análisis estático mediante representaciones visuales (sin ejecución dinámica)
+    \item Evaluación en entorno controlado con muestras etiquetadas
+    \item Arquitecturas CNN estándar y variantes preentrenadas
+\end{itemize}
+
+\subsection{Limitaciones}
+
+Las principales limitaciones incluyen:
+\begin{itemize}
+    \item Dependencia de datasets públicos con distribución potencialmente diferente a amenazas en entornos reales
+    \item Limitación a familias de malware presentes en los datos de entrenamiento (detección de zero-day requeriría enfoques adicionales)
+    \item Foco en malware de Windows (limitado por los datasets disponibles)
+    \item No considera análisis de comportamiento dinámico ni técnicas híbridas
+\end{itemize}
+
+% =============================================================================
+\section{Estructura del Documento}
+\label{sec:intro:structure}
+
+El resto de este documento se organiza de la siguiente manera:
+
+\textbf{Capítulo \ref{chap:related-work} -- Trabajo Relacionado:} Revisión del estado del arte en detección de malware, aplicaciones de Deep Learning en ciberseguridad, y enfoques basados en análisis visual.
+
+\textbf{Capítulo \ref{chap:methodology} -- Metodología:} Descripción detallada de los datasets utilizados, proceso de preprocesamiento, arquitecturas CNN implementadas, y configuración experimental.
+
+\textbf{Capítulo \ref{chap:experiments} -- Experimentos y Resultados:} Presentación de los resultados experimentales, análisis comparativo de diferentes modelos, y evaluación del rendimiento.
+
+\textbf{Capítulo \ref{chap:conclusion} -- Conclusiones y Trabajo Futuro:} Síntesis de los hallazgos principales, contribuciones del proyecto, limitaciones encontradas, y direcciones futuras de investigación.

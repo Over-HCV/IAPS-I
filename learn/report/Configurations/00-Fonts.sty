@@ -1,0 +1,95 @@
+%%% Fonts %%%
+\usepackage[utf8]{inputenc} % UTF-8 input encoding for Spanish characters
+\usepackage{lmodern} % Latin Modern fonts for better UTF-8 support
+\usepackage[T1]{fontenc} % Font encoding for extended character sets.
+\usepackage{newpxmath} % Use PX fonts for math (alternative to standard fonts).
+\usepackage{fvextra} % Enhanced customisation of verbatim environments.
+\usepackage{csquotes} % Context-sensitive quotation marks.
+% \usepackage{fontspec} % Required for custom fonts with XeLaTeX or LuaLaTeX - REMOVED for pdflatex compatibility
+
+% Configuración de listings para código
+\lstset{
+    language=bash,
+    basicstyle=\ttfamily\small,
+    backgroundcolor=\color{gray!10},
+    keywordstyle=\color{blue}\bfseries,
+    stringstyle=\color{red},
+    commentstyle=\color{green!60!black},
+    showstringspaces=false,
+    numbers=left,
+    numberstyle=\tiny\color{gray},
+    numbersep=5pt,
+    frame=single,
+    rulecolor=\color{gray!50},
+    breaklines=true,
+    breakatwhitespace=true,
+    tabsize=2,
+    captionpos=b
+}
+
+% Definir estilo para Snort
+\lstdefinelanguage{snort}{
+    keywords={alert, log, pass, activate, dynamic, drop, reject, sdrop},
+    keywordstyle=\color{blue}\bfseries,
+    keywords=[2]{tcp, udp, icmp, ip},
+    keywordstyle=[2]\color{purple}\bfseries,
+    keywords=[3]{msg, content, nocase, classtype, priority, sid, rev, reference, pcre, flow, threshold},
+    keywordstyle=[3]\color{orange}\bfseries,
+    sensitive=true,
+    comment=[l]{\#},
+    commentstyle=\color{green!60!black},
+    stringstyle=\color{red},
+    morestring=[b]",
+    morestring=[b]'
+}
+
+% Definir estilo para Pseudocódigo
+\lstdefinelanguage{pseudocode}{
+    keywords={FUNCTION, END, IF, THEN, ELSE, FOR, WHILE, DO, RETURN, BEGIN, END},
+    keywordstyle=\color{blue}\bfseries,
+    keywords=[2]{and, or, not, true, false, null},
+    keywordstyle=[2]\color{red}\bfseries,
+    comment=[l]{//},
+    commentstyle=\color{green!60!black},
+    stringstyle=\color{red},
+    morestring=[b]",
+    morestring=[b]'
+}
+
+% Definir estilo para YAML
+\lstdefinelanguage{yaml}{
+    keywords={true, false, null, yes, no},
+    keywordstyle=\color{blue}\bfseries,
+    comment=[l]{\#},
+    commentstyle=\color{green!60!black},
+    stringstyle=\color{red},
+    morestring=[b]",
+    morestring=[b]'
+}
+
+% Definir estilo para SPL (Splunk Processing Language)
+\lstdefinelanguage{spl}{
+    keywords={index, sourcetype, eval, stats, where, sort, outputlookup, regex, match},
+    keywordstyle=\color{blue}\bfseries,
+    keywords=[2]{count, by, src_ip, threat_level, _time},
+    keywordstyle=[2]\color{purple}\bfseries,
+    comment=[l]{\#},
+    commentstyle=\color{green!60!black},
+    stringstyle=\color{red},
+    morestring=[b]",
+    morestring=[b]'
+}
+
+
+\linespread{1.2} % Slightly increase line spacing.
+% \setmainfont{TeX Gyre Pagella}[LetterSpace=0.7] % Set TeX Gyre Pagella as the main font - REMOVED for pdflatex compatibility
+
+% Custom font commands removed for pdflatex compatibility
+% \newcommand{\latofont}{\fontspec{Lato}}
+% \newcommand{\garamondfont}{\fontspec{EB Garamond}}
+% \newcommand{\crimsonfont}{\fontspec{Crimson}[LetterSpace=-0.5]}
+
+% Alternative font commands for pdflatex
+\newcommand{\latofont}{\fontfamily{lmss}\selectfont}
+\newcommand{\garamondfont}{\fontfamily{cmr}\selectfont}
+\newcommand{\crimsonfont}{\fontfamily{cmr}\selectfont}

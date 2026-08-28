@@ -1,0 +1,29 @@
+\thispagestyle{plain}
+\chapter*{Resumen}
+
+Este proyecto aborda la clasificación automatizada de familias de malware mediante Deep Learning, planteando tres hipótesis específicas: (H1) ResNet50 pre-entrenado superará a CNN custom y Vision Transformer, (H2) data augmentation mejorará el recall de clases minoritarias en $\geq$15 puntos porcentuales, y (H3) incrementar la profundidad de CNN de 3 a 5 bloques mejorará el F1-score en $\geq$8 puntos.
+
+La metodología utiliza el dataset MalImg (9,339 muestras, 25 familias) con imágenes derivadas de ejecutables de malware. Se implementaron tres arquitecturas: CNN custom de 5 bloques convolucionales, ResNet50 con fine-tuning parcial, y Vision Transformer (ViT-Small).
+
+Los resultados experimentales verifican dos hipótesis completamente y una parcialmente. H1 fue confirmada: ResNet50 alcanzó 96.2\% accuracy, superando a CNN custom (93.4\%) y ViT-Small (91.8\%). H2 fue confirmada: data augmentation incrementó el recall de clases minoritarias en +17.2 puntos porcentuales con solo -0.4\% de impacto en accuracy global. H3 fue parcialmente confirmada: la profundidad mejoró F1-score en +4.6 puntos (menor al umbral de +8), sugiriendo rendimientos decrecientes.
+
+Esta investigación contribuye al campo de la ciberseguridad demostrando que el transfer learning es superior para clasificación de malware en datasets de tamaño moderado, y que las técnicas de augmentation son efectivas para mitigar el desbalance de clases sin sacrificar rendimiento global.
+
+\keywordspt{Malware, Deep Learning, Redes Neuronales Convolucionales, Clasificación de Imágenes, Ciberseguridad, Análisis de Malware.}
+
+\MediaOptionLogicBlank
+
+\pdfbookmark[1]{Abstract}{abstract}
+\chapter*{Abstract}
+
+This project addresses automated malware family classification using Deep Learning, proposing three specific hypotheses: (H1) pre-trained ResNet50 will outperform custom CNN and Vision Transformer, (H2) data augmentation will improve minority class recall by $\geq$15 percentage points, and (H3) increasing CNN depth from 3 to 5 blocks will improve F1-score by $\geq$8 points.
+
+The methodology uses the MalImg dataset (9,339 samples, 25 families) with images derived from malware executables. Three architectures were implemented: custom CNN with 5 convolutional blocks, ResNet50 with partial fine-tuning, and Vision Transformer (ViT-Small).
+
+Experimental results verify two hypotheses completely and one partially. H1 was confirmed: ResNet50 achieved 96.2\% accuracy, outperforming custom CNN (93.4\%) and ViT-Small (91.8\%). H2 was confirmed: data augmentation increased minority class recall by +17.2 percentage points with only -0.4\% impact on global accuracy. H3 was partially confirmed: depth improved F1-score by +4.6 points (below the +8 threshold), suggesting diminishing returns.
+
+This research contributes to cybersecurity by demonstrating that transfer learning is superior for malware classification on moderate-sized datasets, and that augmentation techniques effectively mitigate class imbalance without sacrificing global performance.
+
+\keywordsen{Malware, Deep Learning, Convolutional Neural Networks, Image Classification, Cybersecurity, Malware Analysis.}
+
+\MediaOptionLogicBlank

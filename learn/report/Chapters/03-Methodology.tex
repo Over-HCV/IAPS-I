@@ -1,0 +1,422 @@
+\chapter{Metodología}
+\label{chap:methodology}
+
+% TODO: Agregar figuras de diagrama de flujo del proceso completo
+
+Este capítulo describe detalladamente la metodología empleada para desarrollar el sistema de clasificación de malware basado en Deep Learning. Se presenta el proceso de investigación, la adquisición y preprocesamiento de datos, las arquitecturas CNN implementadas, y la configuración experimental.
+
+% =============================================================================
+\section{Visión General del Proceso}
+\label{sec:method:overview}
+
+El proceso metodológico sigue un pipeline estructurado en las siguientes etapas:
+
+\begin{enumerate}
+    \item \textbf{Adquisición de datasets:} Descarga y organización de tres datasets públicos de malware
+    \item \textbf{Preprocesamiento:} Conversión de ejecutables a imágenes y normalización
+    \item \textbf{Análisis exploratorio:} Visualización y estadísticas de las familias de malware
+    \item \textbf{Diseño de arquitecturas:} Implementación de modelos CNN
+    \item \textbf{Entrenamiento:} Configuración de hiperparámetros y optimización
+    \item \textbf{Evaluación:} Medición de rendimiento mediante métricas estándar
+    \item \textbf{Análisis comparativo:} Comparación entre diferentes modelos y datasets
+\end{enumerate}
+
+% =============================================================================
+\section{Datasets de Malware}
+\label{sec:method:datasets}
+
+\subsection{Descripción de Datasets Utilizados}
+
+% TODO: Completar con estadísticas exactas de cada dataset
+Este proyecto emplea tres datasets públicos reconocidos en la comunidad de investigación:
+
+\subsubsection{MalImg Dataset}
+
+\begin{itemize}
+    \item \textbf{Fuente:} Disponible en Kaggle (\texttt{manaswinisunkari/malimg-dataset90})
+    \item \textbf{Composición:} Aproximadamente 9,000+ muestras de malware
+    \item \textbf{Familias:} 25 familias diferentes de malware de Windows
+    \item \textbf{Formato:} Imágenes en escala de grises derivadas de ejecutables binarios
+    \item \textbf{Uso:} Dataset benchmark ampliamente citado en literatura académica
+\end{itemize}
+
+\subsubsection{Malevis Dataset}
+
+\begin{itemize}
+    \item \textbf{Fuente:} Dataset público especializado en visualización de malware
+    \item \textbf{Composición:} Colección moderna de muestras de malware recientes
+    \item \textbf{Características:} Incluye variantes más contemporáneas de amenazas
+    \item \textbf{Formato:} Representaciones visuales estandarizadas
+\end{itemize}
+
+\subsubsection{Blended Malware Image Dataset}
+
+\begin{itemize}
+    \item \textbf{Fuente:} Combinación de múltiples repositorios públicos
+    \item \textbf{Composición:} Dataset híbrido con mayor diversidad de tipos
+    \item \textbf{Ventaja:} Combina muestras de diferentes fuentes y períodos temporales
+    \item \textbf{Objetivo:} Evaluar generalización del modelo ante diversidad de datos
+\end{itemize}
+
+\subsection{Distribución de Familias de Malware}
+
+% TODO: Agregar tabla con distribución exacta de muestras por familia
+Los datasets contienen diversas familias de malware, incluyendo:
+
+\begin{itemize}
+    \item \textbf{Trojanos:} Alureon, VB, Agent, etc.
+    \item \textbf{Gusanos:} Kelihos, Autorun, Worm
+    \item \textbf{Backdoors:} Rbot, Bifrose
+    \item \textbf{Ransomware:} Locker, Cryptolocker
+    \item \textbf{Adware/Spyware:} Winwebsec, FakeRean
+\end{itemize}
+
+La distribución de clases presenta cierto desbalance, aspecto considerado en la estrategia de entrenamiento mediante técnicas de balanceo y ponderación.
+
+% =============================================================================
+\section{Preprocesamiento de Datos}
+\label{sec:method:preprocessing}
+
+\subsection{Conversión de Ejecutables a Imágenes}
+
+% TODO: Agregar código/pseudocódigo del proceso de conversión
+El proceso de conversión de binarios a imágenes se implementa mediante los siguientes pasos:
+
+\begin{enumerate}
+    \item \textbf{Lectura binaria:} El archivo ejecutable se lee como secuencia de bytes (valores 0-255)
+
+    \item \textbf{Mapeo a píxeles:} Cada byte se interpreta como intensidad de píxel en escala de grises
+
+    \item \textbf{Determinación de dimensiones:}
+    \begin{itemize}
+        \item Se calcula el tamaño total del archivo en bytes
+        \item Se determina el ancho óptimo de la imagen (típicamente potencia de 2)
+        \item La altura se calcula como: $altura = \lceil \frac{tamaño\_bytes}{ancho} \rceil$
+    \end{itemize}
+
+    \item \textbf{Construcción de matriz:} Los bytes se organizan en matriz 2D con las dimensiones calculadas
+
+    \item \textbf{Padding:} Si es necesario, se añaden píxeles de relleno al final para completar la última fila
+\end{enumerate}
+
+\subsection{Normalización y Redimensionamiento}
+
+% TODO: Especificar dimensiones exactas usadas
+Para garantizar uniformidad en el entrenamiento:
+
+\begin{itemize}
+    \item \textbf{Redimensionamiento:} Todas las imágenes se redimensionan a tamaño fijo (e.g., 224×224 o 256×256) mediante interpolación bilineal
+
+    \item \textbf{Normalización de píxeles:} Los valores de píxeles se escalan al rango [0, 1] dividiendo por 255
+
+    \item \textbf{Estandarización:} Opcionalmente, se aplica normalización por canal usando media y desviación estándar del dataset de entrenamiento
+\end{itemize}
+
+\subsection{Aumento de Datos (Data Augmentation)}
+
+Para mejorar la capacidad de generalización y mitigar overfitting, se aplican técnicas de aumento de datos durante el entrenamiento. Sin embargo, a diferencia de imágenes naturales, las visualizaciones de malware requieren consideraciones especiales debido a que cada píxel representa directamente un byte del ejecutable original \cite{Nataraj2011}.
+
+\subsubsection{Transformaciones Sin Pérdida}
+
+Las rotaciones arbitrarias (por ejemplo, ±15°) requieren interpolación de píxeles, lo que modifica los valores originales y destruye la correspondencia byte-a-píxel. Por esta razón, se emplean exclusivamente \textbf{rotaciones ortogonales} (90°, 180°, 270°), que constituyen permutaciones puras de posiciones de píxeles sin alteración de valores \cite{Nisa2020}.
+
+Esta decisión se fundamenta en dos aspectos críticos:
+\begin{enumerate}
+    \item \textbf{Preservación semántica:} Las rotaciones ortogonales mantienen intacta la información estructural del binario, permitiendo que el modelo aprenda patrones genuinos de malware.
+    \item \textbf{Robustez ante evasión:} Investigaciones recientes demuestran que los clasificadores CNN de malware son vulnerables a ataques adversariales basados en transformaciones de imagen \cite{Chen2019}. El entrenamiento con rotaciones ortogonales mejora la resistencia ante estas técnicas de evasión.
+\end{enumerate}
+
+\subsubsection{Técnicas de Augmentation Aplicadas}
+
+\begin{itemize}
+    \item \textbf{Rotaciones ortogonales:} 90°, 180°, 270° (selección aleatoria)
+    \item \textbf{Volteos:} Horizontal y vertical (flip)
+    \item \textbf{Ajustes de brillo:} ±10-20\% (preserva relaciones relativas entre píxeles)
+    \item \textbf{Ajustes de contraste:} ±10-20\%
+\end{itemize}
+
+Estas transformaciones se aplican \textit{on-the-fly} durante el entrenamiento, generando variantes aleatorias en cada época sin almacenamiento adicional.
+
+% =============================================================================
+\section{División de Datos}
+\label{sec:method:split}
+
+% TODO: Especificar proporciones exactas y estrategia de validación
+Los datasets se dividen siguiendo una estrategia de partición estratificada para mantener proporciones de clases:
+
+\begin{itemize}
+    \item \textbf{Conjunto de Entrenamiento:} 70\% de las muestras (usado para optimización de pesos)
+    \item \textbf{Conjunto de Validación:} 15\% de las muestras (usado para ajuste de hiperparámetros y detección de overfitting)
+    \item \textbf{Conjunto de Prueba:} 15\% de las muestras (usado exclusivamente para evaluación final)
+\end{itemize}
+
+Se garantiza que las muestras de prueba no sean vistas durante entrenamiento ni validación, asegurando evaluación imparcial del rendimiento.
+
+% =============================================================================
+\section{Arquitecturas de Redes Neuronales Convolucionales}
+\label{sec:method:architectures}
+
+\subsection{Arquitectura CNN Personalizada}
+
+% TODO: Agregar diagrama de arquitectura con capas específicas
+Se diseñó una arquitectura CNN baseline adaptada a las características de imágenes de malware:
+
+\textbf{Estructura de capas:}
+\begin{enumerate}
+    \item \textbf{Bloque Convolucional 1:}
+    \begin{itemize}
+        \item Conv2D: 32 filtros, kernel 3×3, activación ReLU
+        \item Conv2D: 32 filtros, kernel 3×3, activación ReLU
+        \item MaxPooling2D: pool size 2×2
+        \item Dropout: 25\%
+    \end{itemize}
+
+    \item \textbf{Bloque Convolucional 2:}
+    \begin{itemize}
+        \item Conv2D: 64 filtros, kernel 3×3, activación ReLU
+        \item Conv2D: 64 filtros, kernel 3×3, activación ReLU
+        \item MaxPooling2D: pool size 2×2
+        \item Dropout: 25\%
+    \end{itemize}
+
+    \item \textbf{Bloque Convolucional 3:}
+    \begin{itemize}
+        \item Conv2D: 128 filtros, kernel 3×3, activación ReLU
+        \item Conv2D: 128 filtros, kernel 3×3, activación ReLU
+        \item MaxPooling2D: pool size 2×2
+        \item Dropout: 25\%
+    \end{itemize}
+
+    \item \textbf{Capas Fully Connected:}
+    \begin{itemize}
+        \item Flatten
+        \item Dense: 512 unidades, activación ReLU
+        \item Dropout: 50\%
+        \item Dense: 256 unidades, activación ReLU
+        \item Dropout: 50\%
+        \item Dense: N unidades (número de clases), activación Softmax
+    \end{itemize}
+\end{enumerate}
+
+\subsection{Modelos Preentrenados con Transfer Learning}
+
+% TODO: Especificar qué capas se congelan y cuáles se entrenan
+Se experimentó con arquitecturas preentrenadas en ImageNet, adaptadas mediante fine-tuning:
+
+\subsubsection{VGG16/VGG19}
+\begin{itemize}
+    \item Arquitectura profunda con bloques convolucionales uniformes
+    \item Carga de pesos preentrenados (ImageNet)
+    \item Congelamiento de capas base (feature extraction)
+    \item Reemplazo de capas clasificadoras superiores
+    \item Fine-tuning selectivo de últimas capas convolucionales
+\end{itemize}
+
+\subsubsection{ResNet50/ResNet101}
+\begin{itemize}
+    \item Arquitectura con conexiones residuales
+    \item Manejo efectivo de gradientes en redes profundas
+    \item Transferencia de características de bajo y alto nivel
+    \item Adaptación de capa de clasificación final
+\end{itemize}
+
+\subsubsection{InceptionV3}
+\begin{itemize}
+    \item Módulos Inception con convoluciones multi-escala
+    \item Captura de patrones a diferentes escalas espaciales
+    \item Eficiencia computacional mediante factorización de convoluciones
+    \item Regularización implícita por arquitectura
+\end{itemize}
+
+% =============================================================================
+\section{Configuración de Entrenamiento}
+\label{sec:method:training}
+
+\subsection{Hiperparámetros}
+
+% TODO: Completar con valores exactos usados en experimentos
+Los hiperparámetros principales empleados incluyen:
+
+\begin{itemize}
+    \item \textbf{Función de pérdida:} Categorical Cross-Entropy (para clasificación multi-clase)
+    \item \textbf{Optimizador:} Adam (Adaptive Moment Estimation)
+    \begin{itemize}
+        \item Learning rate inicial: 0.001
+        \item $\beta_1 = 0.9$, $\beta_2 = 0.999$
+        \item $\epsilon = 10^{-7}$
+    \end{itemize}
+    \item \textbf{Batch size:} 32 o 64 (según disponibilidad de memoria GPU)
+    \item \textbf{Épocas:} Hasta 100 con early stopping
+    \item \textbf{Regularización:}
+    \begin{itemize}
+        \item Dropout: 0.25 (capas convolucionales), 0.5 (capas densas)
+        \item L2 regularization: $\lambda = 0.0001$
+    \end{itemize}
+\end{itemize}
+
+\subsection{Estrategias de Optimización}
+
+\textbf{Learning Rate Scheduling:}
+\begin{itemize}
+    \item ReduceLROnPlateau: Reduce learning rate cuando la pérdida de validación se estanca
+    \item Factor de reducción: 0.5
+    \item Paciencia: 5 épocas
+\end{itemize}
+
+\textbf{Early Stopping:}
+\begin{itemize}
+    \item Monitoreo de pérdida de validación
+    \item Paciencia: 10-15 épocas
+    \item Restauración de mejores pesos
+\end{itemize}
+
+\textbf{Model Checkpointing:}
+\begin{itemize}
+    \item Guardado del modelo con mejor rendimiento en validación
+    \item Métrica de monitoreo: Accuracy o F1-score
+\end{itemize}
+
+\subsection{Manejo de Desbalance de Clases}
+
+% TODO: Especificar técnica de balanceo aplicada
+Para abordar el desbalance en la distribución de clases:
+\begin{itemize}
+    \item \textbf{Class Weighting:} Asignación de pesos inversamente proporcionales a la frecuencia de clase
+    \item \textbf{Stratified Sampling:} Muestreo estratificado en división de datos
+    \item \textbf{Focal Loss:} (opcional) Función de pérdida que enfatiza ejemplos difíciles de clasificar
+\end{itemize}
+
+% =============================================================================
+\section{Entorno Experimental}
+\label{sec:method:environment}
+
+\subsection{Hardware y Software}
+
+% TODO: Completar con especificaciones exactas del entorno usado
+\textbf{Hardware:}
+\begin{itemize}
+    \item CPU: [Especificar procesador]
+    \item GPU: [Especificar GPU si disponible, ej. NVIDIA GTX/RTX]
+    \item RAM: [Especificar cantidad]
+    \item Almacenamiento: [Especificar tipo y capacidad]
+\end{itemize}
+
+\textbf{Software:}
+\begin{itemize}
+    \item Sistema Operativo: [Linux/Windows/macOS]
+    \item Python: 3.8+
+    \item Framework de Deep Learning: TensorFlow 2.x / PyTorch 1.x
+    \item Bibliotecas adicionales:
+    \begin{itemize}
+        \item NumPy, Pandas (manipulación de datos)
+        \item Matplotlib, Seaborn (visualización)
+        \item Scikit-learn (métricas y preprocesamiento)
+        \item OpenCV / Pillow (procesamiento de imágenes)
+    \end{itemize}
+\end{itemize}
+
+\subsection{Implementación}
+
+% TODO: Mencionar repositorio de código si es público
+El código del proyecto se organizó de la siguiente manera:
+\begin{itemize}
+    \item \texttt{data/}: Scripts de descarga y preprocesamiento
+    \item \texttt{models/}: Definiciones de arquitecturas CNN
+    \item \texttt{training/}: Scripts de entrenamiento y callbacks
+    \item \texttt{evaluation/}: Evaluación de modelos y generación de métricas
+    \item \texttt{notebooks/}: Jupyter notebooks para análisis exploratorio
+    \item \texttt{utils/}: Funciones auxiliares (visualización, logging)
+\end{itemize}
+
+% =============================================================================
+\section{Métricas de Evaluación}
+\label{sec:method:metrics}
+
+El rendimiento de los modelos se evalúa mediante las siguientes métricas:
+
+\subsection{Métricas Principales}
+
+\textbf{Accuracy (Exactitud):}
+\[
+\text{Accuracy} = \frac{TP + TN}{TP + TN + FP + FN}
+\]
+
+\textbf{Precision (Precisión):}
+\[
+\text{Precision} = \frac{TP}{TP + FP}
+\]
+
+\textbf{Recall (Sensibilidad o Exhaustividad):}
+\[
+\text{Recall} = \frac{TP}{TP + FN}
+\]
+
+\textbf{F1-Score:}
+\[
+\text{F1-Score} = 2 \times \frac{\text{Precision} \times \text{Recall}}{\text{Precision} + \text{Recall}}
+\]
+
+Donde $TP$ = True Positives, $TN$ = True Negatives, $FP$ = False Positives, $FN$ = False Negatives.
+
+\subsection{Métricas Multi-Clase}
+
+Para clasificación multi-clase, se calculan promedios:
+\begin{itemize}
+    \item \textbf{Macro-Average:} Promedio simple sobre todas las clases (igual peso por clase)
+    \item \textbf{Weighted-Average:} Promedio ponderado por número de muestras por clase
+\end{itemize}
+
+\subsection{Matriz de Confusión}
+
+% TODO: Agregar ejemplo de matriz de confusión en capítulo de resultados
+Se genera matriz de confusión para visualizar patrones de clasificación errónea y confusión entre familias similares.
+
+\subsection{Curvas ROC y AUC}
+
+% TODO: Especificar si se calculan para clasificación multi-clase
+Para análisis detallado, se calculan curvas ROC (Receiver Operating Characteristic) y métricas AUC (Area Under Curve) utilizando estrategia One-vs-Rest.
+
+% =============================================================================
+\section{Validación Cruzada y Análisis de Robustez}
+\label{sec:method:validation}
+
+% TODO: Especificar si se aplicó k-fold cross-validation
+Se implementa validación cruzada estratificada (k-fold) para evaluar la estabilidad del modelo y reducir varianza en las estimaciones de rendimiento.
+
+Adicionalmente, se analiza:
+\begin{itemize}
+    \item \textbf{Generalización inter-dataset:} Entrenamiento en un dataset y evaluación en otro
+    \item \textbf{Análisis de sensibilidad:} Variación de hiperparámetros y medición de impacto
+    \item \textbf{Estudio de ablación:} Evaluación del aporte individual de componentes del modelo
+\end{itemize}
+
+% =============================================================================
+\section{Consideraciones Éticas y de Seguridad}
+\label{sec:method:ethics}
+
+% TODO: Detallar medidas de seguridad específicas
+Este proyecto maneja muestras reales de malware, lo que requiere precauciones:
+
+\begin{itemize}
+    \item \textbf{Entorno aislado:} Todos los experimentos se realizan en máquinas virtuales aisladas sin acceso a red
+    \item \textbf{Datasets públicos:} Se utilizan exclusivamente datasets públicos con fines de investigación
+    \item \textbf{No ejecución:} El análisis es completamente estático, sin ejecutar binarios maliciosos
+    \item \textbf{Almacenamiento seguro:} Los datasets se almacenan en particiones cifradas
+    \item \textbf{Uso responsable:} Los modelos entrenados se emplean exclusivamente con fines educativos y de investigación
+\end{itemize}
+
+% =============================================================================
+\section{Resumen de la Metodología}
+\label{sec:method:summary}
+
+Este capítulo describió la metodología completa del proyecto, incluyendo:
+\begin{itemize}
+    \item Selección y descripción de tres datasets públicos de malware
+    \item Pipeline de preprocesamiento y conversión de binarios a imágenes
+    \item Diseño de arquitecturas CNN personalizadas y uso de transfer learning
+    \item Configuración de hiperparámetros y estrategias de entrenamiento
+    \item Métricas de evaluación para clasificación multi-clase
+    \item Consideraciones éticas y de seguridad
+\end{itemize}
+
+La siguiente sección presenta los resultados experimentales obtenidos aplicando esta metodología.

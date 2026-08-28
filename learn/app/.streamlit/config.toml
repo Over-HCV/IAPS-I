@@ -1,0 +1,19 @@
+[theme]
+# Base theme (dark mode with green accents)
+# Users can customize colors via Theme Settings in sidebar
+
+primaryColor = "#ffcd8e"        # Matrix green - buttons, links
+backgroundColor = "#0e1117"      # Very dark gray/black
+secondaryBackgroundColor = "#1a1f29"  # Slightly lighter for cards
+textColor = "#fafafa"            # Off-white text
+font = "sans serif"
+
+[server]
+# Server config
+headless = true
+port = 8501
+runOnSave = true
+
+[browser]
+# Browser config
+gatherUsageStats = false

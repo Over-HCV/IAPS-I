@@ -1,0 +1,186 @@
+\chapter{Trabajo Relacionado}
+\label{chap:related-work}
+
+% TODO: Agregar citas bibliográficas específicas para cada sección
+
+Este capítulo presenta una revisión del estado del arte en detección y clasificación de malware, con énfasis en enfoques basados en aprendizaje automático y Deep Learning. Se analizan los métodos tradicionales, las técnicas emergentes basadas en visión por computador, y los trabajos previos que fundamentan la propuesta de este proyecto.
+
+% =============================================================================
+\section{Métodos Tradicionales de Detección de Malware}
+\label{sec:related:traditional}
+
+\subsection{Detección Basada en Firmas}
+
+% TODO: Citar antivirus comerciales y estudios académicos
+Los sistemas antivirus tradicionales emplean detección basada en firmas, donde se comparan patrones binarios conocidos (hashes o secuencias de bytes) contra bases de datos de malware identificado. Este enfoque presenta alta precisión para amenazas conocidas pero falla ante:
+\begin{itemize}
+    \item \textbf{Polimorfismo:} Malware que modifica su código en cada infección
+    \item \textbf{Ofuscación:} Técnicas de empaquetado que alteran la firma sin cambiar funcionalidad
+    \item \textbf{Zero-day:} Amenazas completamente nuevas sin firma registrada
+\end{itemize}
+
+\subsection{Análisis Heurístico}
+
+Los métodos heurísticos evalúan comportamientos sospechosos mediante reglas predefinidas, como acceso no autorizado al registro, modificación de archivos del sistema, o comunicaciones de red anómalas. Aunque más flexibles que las firmas, dependen de la experticia humana para definir reglas y pueden generar altas tasas de falsos positivos.
+
+\subsection{Análisis Dinámico (Sandboxing)}
+
+% TODO: Referenciar herramientas como Cuckoo Sandbox
+El análisis dinámico ejecuta muestras sospechosas en entornos controlados (sandboxes) para observar su comportamiento. Proporciona información detallada pero presenta desventajas:
+\begin{itemize}
+    \item Alto costo computacional y temporal
+    \item Malware puede detectar entornos virtualizados y alterar su comportamiento
+    \item Dificultad para escalar a análisis masivo
+\end{itemize}
+
+% =============================================================================
+\section{Machine Learning en Detección de Malware}
+\label{sec:related:machine-learning}
+
+\subsection{Enfoques Tradicionales de ML}
+
+% TODO: Citar trabajos seminales de ML para malware
+La aplicación de técnicas de Machine Learning a la clasificación de malware ha sido ampliamente estudiada. Los enfoques clásicos incluyen:
+
+\textbf{Support Vector Machines (SVM):} Utilizadas para clasificación binaria (benigno vs. malicioso) y multi-clase (familias de malware) basándose en características extraídas manualmente como n-gramas de bytes, llamadas API, o estructuras PE.
+
+\textbf{Random Forests y Decision Trees:} Algoritmos ensemble que combinan múltiples árboles de decisión, efectivos para capturar relaciones no lineales entre características.
+
+\textbf{k-Nearest Neighbors (k-NN):} Clasificación basada en similitud con muestras conocidas, útil para detección de variantes de familias existentes.
+
+La principal limitación de estos métodos radica en la dependencia de ingeniería manual de características (feature engineering), proceso que requiere expertise de dominio y puede no capturar representaciones óptimas.
+
+% =============================================================================
+\section{Deep Learning para Análisis de Malware}
+\label{sec:related:deep-learning}
+
+\subsection{Ventajas del Deep Learning}
+
+% TODO: Añadir referencias a surveys de DL en ciberseguridad
+El Deep Learning ofrece capacidad de aprendizaje automático de representaciones jerárquicas directamente de datos crudos o mínimamente procesados. Las principales arquitecturas aplicadas incluyen:
+
+\textbf{Redes Neuronales Convolucionales (CNN):} Especialmente efectivas cuando el malware se representa como imágenes o secuencias con estructura espacial.
+
+\textbf{Redes Neuronales Recurrentes (RNN/LSTM):} Utilizadas para analizar secuencias de instrucciones o llamadas API, capturando dependencias temporales.
+
+\textbf{Autoencoders:} Empleados para detección de anomalías, identificando muestras que se desvían significativamente de patrones normales.
+
+\subsection{Trabajos Previos con Deep Learning}
+
+% TODO: Revisar y citar papers específicos de cada enfoque
+Diversos estudios han explorado Deep Learning para malware:
+
+\begin{itemize}
+    \item Análisis de secuencias de bytes mediante CNN 1D
+    \item Clasificación de malware de Android mediante análisis de permisos y grafos de llamadas
+    \item Detección de ransomware usando autoencoders variacionales
+    \item Clasificación de familias mediante embeddings aprendidos
+\end{itemize}
+
+% =============================================================================
+\section{Análisis Visual de Malware}
+\label{sec:related:visual-analysis}
+
+\subsection{Conversión de Binarios a Imágenes}
+
+% TODO: Citar trabajos seminales de visualización de malware (Nataraj et al.)
+Un enfoque innovador consiste en visualizar ejecutables como imágenes. El proceso típico incluye:
+
+\begin{enumerate}
+    \item Leer el archivo binario como secuencia de bytes
+    \item Interpretar cada byte como valor de intensidad de píxel (0-255)
+    \item Organizar los píxeles en una matriz bidimensional
+    \item Aplicar redimensionamiento a tamaño estándar
+\end{enumerate}
+
+Esta representación visual preserva la estructura del ejecutable y permite aplicar técnicas de visión por computador.
+
+\subsection{Características Visuales Discriminativas}
+
+% TODO: Explicar qué patrones visuales distinguen familias de malware
+Estudios han demostrado que diferentes familias de malware exhiben texturas visuales distintivas relacionadas con:
+\begin{itemize}
+    \item Estructura del código (secciones .text, .data, .rdata)
+    \item Técnicas de empaquetado y compresión
+    \item Presencia de recursos embebidos (imágenes, configuraciones)
+    \item Patrones de cifrado o ofuscación
+\end{itemize}
+
+Las CNN son particularmente efectivas para extraer automáticamente estas características visuales.
+
+% =============================================================================
+\section{Trabajos con CNN para Clasificación de Malware}
+\label{sec:related:cnn-malware}
+
+\subsection{Arquitecturas CNN Aplicadas}
+
+% TODO: Detallar arquitecturas específicas usadas en literatura
+Diversos trabajos han aplicado CNN para clasificación de malware visual:
+
+\textbf{CNN Shallow:} Arquitecturas simples de pocas capas para datasets pequeños, reduciendo riesgo de overfitting.
+
+\textbf{CNN Profundas Personalizadas:} Arquitecturas diseñadas específicamente para características de imágenes de malware.
+
+\textbf{Transfer Learning:} Uso de modelos preentrenados (VGG, ResNet, Inception) en ImageNet, adaptados mediante fine-tuning para malware.
+
+\subsection{Resultados Reportados en Literatura}
+
+% TODO: Incluir tabla comparativa con trabajos previos y sus resultados
+Los estudios existentes reportan precisiones que varían entre 85\% y 99\% dependiendo de:
+\begin{itemize}
+    \item Complejidad del dataset (número de familias)
+    \item Calidad y cantidad de muestras de entrenamiento
+    \item Arquitectura CNN utilizada
+    \item Técnicas de regularización y aumento de datos
+\end{itemize}
+
+% =============================================================================
+\section{Datasets Públicos de Malware}
+\label{sec:related:datasets}
+
+\subsection{Descripción de Datasets Relevantes}
+
+% TODO: Detallar características específicas de cada dataset usado
+Los principales datasets públicos para investigación en clasificación de malware incluyen:
+
+\textbf{MalImg Dataset:} Contiene imágenes de malware organizadas en 25 familias, ampliamente utilizado como benchmark estándar.
+
+\textbf{Malevis Dataset:} Dataset más reciente con mayor variedad de familias y muestras, incluyendo malware moderno.
+
+\textbf{Blended Malware Image Dataset:} Combinación de múltiples fuentes, ofreciendo diversidad en tipos y familias.
+
+Estos datasets proporcionan la base empírica para entrenar y evaluar modelos de clasificación.
+
+% =============================================================================
+\section{Brechas en la Literatura y Motivación del Proyecto}
+\label{sec:related:gaps}
+
+% TODO: Refinar según contribuciones específicas del proyecto
+A pesar de los avances, persisten oportunidades de investigación:
+
+\begin{itemize}
+    \item \textbf{Comparación sistemática:} Pocos estudios comparan múltiples datasets y arquitecturas bajo condiciones controladas.
+
+    \item \textbf{Interpretabilidad:} Limitada comprensión de qué características visuales específicas utiliza la CNN para discriminar familias.
+
+    \item \textbf{Robustez:} Evaluación insuficiente ante técnicas adversariales diseñadas para engañar clasificadores.
+
+    \item \textbf{Escalabilidad:} Necesidad de validar rendimiento en datasets masivos más representativos de entornos reales.
+\end{itemize}
+
+Este proyecto busca contribuir mediante una evaluación exhaustiva de múltiples arquitecturas CNN sobre tres datasets reconocidos, con análisis detallado de rendimiento y características aprendidas.
+
+% =============================================================================
+\section{Resumen}
+\label{sec:related:summary}
+
+La revisión del estado del arte revela que:
+\begin{enumerate}
+    \item Los métodos tradicionales de detección presentan limitaciones significativas ante malware moderno.
+    \item El Machine Learning y Deep Learning han demostrado gran potencial para clasificación automatizada.
+    \item El enfoque visual de malware permite aplicar técnicas probadas de visión por computador.
+    \item Existen datasets públicos adecuados para entrenar y evaluar modelos.
+    \item Persisten oportunidades para investigación adicional en comparación de arquitecturas e interpretabilidad.
+\end{enumerate}
+
+Estos fundamentos justifican el enfoque propuesto en este proyecto, combinando análisis visual con CNN para clasificación robusta y eficiente de familias de malware.

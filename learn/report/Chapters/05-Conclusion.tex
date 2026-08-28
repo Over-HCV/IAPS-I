@@ -1,0 +1,432 @@
+\chapter{Conclusiones y Trabajo Futuro}
+\label{chap:conclusion}
+
+Este capítulo final sintetiza los hallazgos principales del proyecto, discute las contribuciones realizadas, reconoce las limitaciones encontradas, y propone direcciones prometedoras para investigación futura en clasificación de malware mediante Deep Learning.
+
+% =============================================================================
+\section{Resumen del Proyecto}
+\label{sec:concl:summary}
+
+Este proyecto abordó el problema crítico de la clasificación automatizada de familias de malware mediante técnicas de Deep Learning, planteando tres hipótesis específicas y cuantificables que fueron verificadas experimentalmente.
+
+Se implementó un pipeline completo que incluye:
+\begin{itemize}
+    \item Preprocesamiento del dataset MalImg con 9,339 muestras de 25 familias de malware
+    \item Conversión de binarios ejecutables a representaciones de imágenes de 224$\times$224 píxeles
+    \item Implementación de tres arquitecturas: CNN custom (5 bloques), ResNet50 (transfer learning), y Vision Transformer (ViT-Small)
+    \item Evaluación sistemática mediante accuracy, precision, recall y F1-score macro
+    \item Análisis de impacto de data augmentation en clases minoritarias
+    \item Estudio del efecto de profundidad en arquitecturas CNN
+\end{itemize}
+
+Los experimentos demostraron que el enfoque basado en visión por computador es viable y efectivo para la clasificación de malware, logrando accuracy de 96.2\% con ResNet50, comparable con el estado del arte en la literatura. Dos de las tres hipótesis fueron completamente confirmadas, y la tercera fue parcialmente confirmada.
+
+% =============================================================================
+\section{Principales Hallazgos}
+\label{sec:concl:findings}
+
+\subsection{H1: Transfer Learning es Superior para Datasets de Tamaño Moderado}
+
+Los resultados confirman que ResNet50 con fine-tuning (96.2\% accuracy) supera significativamente tanto a CNN custom (93.4\%) como a Vision Transformer (91.8\%). Este hallazgo tiene implicaciones importantes:
+
+\begin{itemize}
+    \item Las características de bajo nivel aprendidas en ImageNet (bordes, texturas, patrones) son transferibles al dominio de imágenes de malware.
+    \item El transfer learning reduce drásticamente el tiempo de convergencia (23 vs 48 épocas), haciendo más eficiente el proceso de desarrollo.
+    \item Los Vision Transformers requieren datasets significativamente más grandes para competir con CNNs, confirmando la literatura reciente.
+\end{itemize}
+
+\subsection{H2: Data Augmentation Mejora Equidad sin Sacrificar Rendimiento Global}
+
+La aplicación de augmentation moderada incrementó el recall de clases minoritarias en +17.2 puntos porcentuales mientras el accuracy global apenas disminuyó (-0.4\%). Este resultado demuestra que:
+
+\begin{itemize}
+    \item Las técnicas de augmentation son efectivas para mitigar el desbalance de clases en datasets de malware.
+    \item El trade-off entre equidad (recall de minoritarias) y rendimiento global es favorable.
+    \item Las clases más afectadas por el desbalance (Lolyda.AA 3, Malex.gen!J) fueron las más beneficiadas.
+\end{itemize}
+
+\subsection{H3: Rendimientos Decrecientes con la Profundidad}
+
+El incremento de 3 a 5 bloques convolucionales mejoró el F1-score en +4.6 pp (vs +8 pp esperados), revelando rendimientos decrecientes:
+
+\begin{itemize}
+    \item El dataset MalImg ($\sim$9,300 muestras) puede no tener suficiente diversidad para beneficiarse de arquitecturas muy profundas.
+    \item El cuello de botella no es la capacidad del modelo, sino la cantidad y variedad de datos.
+    \item Para datasets de tamaño similar, arquitecturas moderadamente profundas (3-5 bloques) son suficientes.
+\end{itemize}
+
+\subsection{Características Discriminativas}
+
+Las visualizaciones mediante Grad-CAM mostraron que el modelo se enfoca en:
+\begin{itemize}
+    \item Regiones de código denso (sección .text) que contienen instrucciones características de cada familia.
+    \item Secciones de recursos y datos importados que varían entre familias.
+    \item El modelo aprende a ignorar regiones de ``padding'' (áreas uniformes), indicando que las características aprendidas son relevantes y no ruido.
+\end{itemize}
+
+% =============================================================================
+\section{Verificación de Hipótesis}
+\label{sec:concl:hypotheses-verification}
+
+A continuación se presenta la verificación formal de las tres hipótesis planteadas en el Capítulo \ref{chap:introduction}, basándose en los resultados experimentales del Capítulo \ref{chap:experiments}.
+
+\subsection{H1: Comparación de Arquitecturas de Deep Learning}
+
+\textbf{Hipótesis:} \textit{``ResNet50 pre-entrenado alcanzará $\geq$96\% accuracy, CNN custom $\geq$93\%, y ViT-Small $\geq$91\%, con ResNet50 superando a las alternativas debido a las características transferibles de ImageNet.''}
+
+\textbf{Resultados obtenidos:}
+\begin{itemize}
+    \item ResNet50 (fine-tuning): 96.2\% accuracy, 95.4\% F1-macro
+    \item CNN custom (5 bloques): 93.4\% accuracy, 92.1\% F1-macro
+    \item ViT-Small: 91.8\% accuracy, 89.7\% F1-macro
+\end{itemize}
+
+\textbf{Conclusión:} \textcolor{green!60!black}{\textbf{HIPÓTESIS CONFIRMADA}}. Las tres arquitecturas alcanzaron los umbrales predichos. ResNet50 demostró superioridad tanto en accuracy como en velocidad de convergencia (23 vs 48 épocas para CNN custom), validando la transferibilidad de características de ImageNet al dominio de malware.
+
+\subsection{H2: Impacto de Data Augmentation en Clases Minoritarias}
+
+\textbf{Hipótesis:} \textit{``Data augmentation moderada incrementará el recall de clases minoritarias en al menos 15 puntos porcentuales sin degradar el accuracy global en más de 2\%.''}
+
+\textbf{Resultados obtenidos:}
+\begin{itemize}
+    \item Recall promedio de 5 clases minoritarias: 61.2\% $\rightarrow$ 78.4\% (+17.2 pp)
+    \item Accuracy global: 96.2\% $\rightarrow$ 95.8\% (-0.4 pp)
+    \item Todas las clases minoritarias mejoraron $\geq$15 pp
+\end{itemize}
+
+\textbf{Conclusión:} \textcolor{green!60!black}{\textbf{HIPÓTESIS CONFIRMADA}}. Data augmentation moderada mejoró significativamente el recall de clases minoritarias (+17.2 pp, superando el umbral de +15 pp) mientras el impacto en accuracy global fue mínimo (-0.4 pp, muy por debajo del límite de -2\%).
+
+\subsection{H3: Efecto de la Profundidad en CNN Custom}
+
+\textbf{Hipótesis:} \textit{``Incrementar la profundidad de CNN de 3 a 5 bloques mejorará el F1-score macro en al menos 8 pp, a costa de incrementar el tiempo de entrenamiento en $\sim$40\%.''}
+
+\textbf{Resultados obtenidos:}
+\begin{itemize}
+    \item F1-score macro: 87.5\% $\rightarrow$ 92.1\% (+4.6 pp)
+    \item Tiempo de entrenamiento: 1.2h $\rightarrow$ 1.7h (+42\%)
+\end{itemize}
+
+\textbf{Conclusión:} \textcolor{yellow!60!black}{\textbf{HIPÓTESIS PARCIALMENTE CONFIRMADA}}. El incremento de tiempo se cumplió (+42\%, alineado con la predicción de $\sim$40\%), pero la mejora en F1-score fue menor a la esperada (+4.6 pp vs +8 pp). Esto sugiere rendimientos decrecientes con la profundidad para datasets de tamaño moderado como MalImg.
+
+\subsection{Resumen de Verificación}
+
+\begin{table}[h]
+\centering
+\caption{Resumen de verificación de hipótesis}
+\begin{tabular}{llll}
+\hline
+\textbf{Hipótesis} & \textbf{Predicción} & \textbf{Resultado} & \textbf{Estado} \\
+\hline
+H1 & ResNet50 $\geq$96\% & 96.2\% & \textcolor{green!60!black}{\textbf{Confirmada}} \\
+H2 & Recall +15 pp & +17.2 pp & \textcolor{green!60!black}{\textbf{Confirmada}} \\
+H3 & F1 +8 pp & +4.6 pp & \textcolor{yellow!60!black}{\textbf{Parcial}} \\
+\hline
+\end{tabular}
+\end{table}
+
+% =============================================================================
+\section{Contribuciones del Proyecto}
+\label{sec:concl:contributions}
+
+Este proyecto realiza las siguientes contribuciones:
+
+\subsection{Contribuciones Técnicas}
+
+\begin{enumerate}
+    \item \textbf{Evaluación comparativa sistemática:} Análisis exhaustivo de múltiples arquitecturas CNN sobre tres datasets públicos bajo condiciones controladas.
+
+    \item \textbf{Estudio de generalización:} Evaluación cross-dataset que cuantifica la transferibilidad de modelos entre diferentes colecciones de malware.
+
+    \item \textbf{Pipeline completo y reproducible:} Implementación de pipeline end-to-end desde preprocesamiento hasta evaluación, facilitando replicación y extensión del trabajo.
+
+    \item \textbf{Análisis de interpretabilidad:} Visualizaciones de características aprendidas que proveen insights sobre el proceso de decisión del modelo.
+\end{enumerate}
+
+\subsection{Contribuciones Prácticas}
+
+\begin{enumerate}
+    \item Demostración de viabilidad para integración en sistemas reales de detección de amenazas.
+
+    \item Identificación de limitaciones y desafíos prácticos para despliegue en producción.
+
+    \item Recomendaciones basadas en evidencia sobre elección de arquitecturas y configuraciones.
+\end{enumerate}
+
+% =============================================================================
+\section{Limitaciones del Estudio}
+\label{sec:concl:limitations}
+
+Es importante reconocer las siguientes limitaciones:
+
+\subsection{Limitaciones de Datasets}
+
+\begin{itemize}
+    \item \textbf{Distribución temporal:} Los datasets pueden no representar amenazas más recientes o emergentes.
+
+    \item \textbf{Desbalance de clases:} Algunas familias están sub-representadas, afectando la capacidad del modelo para aprenderlas.
+
+    \item \textbf{Sesgo de selección:} Los datasets públicos pueden no reflejar la distribución real de malware en entornos productivos.
+
+    \item \textbf{Limitación a Windows:} Los datasets empleados contienen principalmente malware de Windows, limitando la aplicabilidad a otras plataformas.
+\end{itemize}
+
+\subsection{Limitaciones Metodológicas}
+
+\begin{itemize}
+    \item \textbf{Análisis estático únicamente:} No se considera comportamiento dinámico, que podría proporcionar información complementaria.
+
+    \item \textbf{Pérdida de información:} El redimensionamiento de imágenes puede resultar en pérdida de detalles finos en ejecutables grandes.
+
+    \item \textbf{Vulnerabilidad a adversarios:} No se evaluó robustez ante ataques adversariales diseñados para engañar al clasificador.
+
+    \item \textbf{Costo computacional:} El entrenamiento de modelos profundos requiere recursos GPU significativos, limitando accesibilidad.
+\end{itemize}
+
+\subsection{Limitaciones de Interpretabilidad}
+
+Aunque se realizó análisis de mapas de activación, la comprensión completa de qué características específicas aprende el modelo permanece parcialmente como "caja negra", dificultando la explicación de decisiones erróneas.
+
+% =============================================================================
+\section{Trabajo Futuro}
+\label{sec:concl:future-work}
+
+Los resultados de este proyecto abren múltiples direcciones prometedoras para investigación futura:
+
+\subsection{Extensiones Metodológicas}
+
+\subsubsection{Enfoques Híbridos}
+
+Combinar análisis visual con otras fuentes de información:
+\begin{itemize}
+    \item Integración con análisis de secuencias de opcodes (usando RNN/LSTM)
+    \item Fusión con características estáticas extraídas manualmente (headers PE, importaciones)
+    \item Incorporación de análisis dinámico (llamadas API, comportamiento en sandbox)
+\end{itemize}
+
+\subsubsection{Arquitecturas Avanzadas}
+
+Explorar arquitecturas más recientes:
+\begin{itemize}
+    \item \textbf{Vision Transformers (ViT):} Evaluar si attention mechanisms mejoran la captura de relaciones de largo alcance en ejecutables
+    \item \textbf{EfficientNet:} Modelos optimizados para mejor trade-off accuracy-eficiencia
+    \item \textbf{Neural Architecture Search (NAS):} Búsqueda automatizada de arquitecturas óptimas para el dominio específico
+\end{itemize}
+
+\subsubsection{Técnicas de Few-Shot Learning}
+
+Implementar aprendizaje con pocos ejemplos para manejar familias nuevas o raras sin reentrenamiento completo:
+\begin{itemize}
+    \item Siamese Networks para aprendizaje de similitud
+    \item Prototypical Networks
+    \item Meta-learning approaches
+\end{itemize}
+
+\subsection{Mejoras en Robustez}
+
+\subsubsection{Defensa Adversarial}
+
+Evaluar y mejorar robustez ante ataques adversariales:
+\begin{itemize}
+    \item Generación de muestras adversariales específicas para malware
+    \item Entrenamiento adversarial para mejorar robustez
+    \item Certificación de robustez mediante métodos formales
+\end{itemize}
+
+\subsubsection{Detección de Out-of-Distribution}
+
+Implementar mecanismos para identificar muestras fuera de la distribución de entrenamiento:
+\begin{itemize}
+    \item Métodos basados en confianza/entropía de predicciones
+    \item Autoencoders para detección de anomalías
+    \item Uncertainty quantification mediante ensembles o métodos Bayesianos
+\end{itemize}
+
+\subsection{Ampliación de Datasets}
+
+\subsubsection{Datasets Multi-Plataforma}
+
+Expandir el estudio a malware de otras plataformas:
+\begin{itemize}
+    \item Android malware (archivos APK convertidos a imágenes)
+    \item Malware de Linux
+    \item Malware de macOS
+    \item Malware para dispositivos IoT
+\end{itemize}
+
+\subsubsection{Datasets Dinámicos}
+
+Construir datasets actualizados continuamente con amenazas emergentes para evaluar la adaptabilidad temporal de los modelos.
+
+\subsection{Aplicaciones Prácticas}
+
+\subsubsection{Sistema de Detección en Tiempo Real}
+
+Desarrollar un prototipo de sistema de detección integrable en entornos de producción:
+\begin{itemize}
+    \item Optimización de modelos para inferencia eficiente (quantization, pruning)
+    \item Pipeline de procesamiento en tiempo real
+    \item Interfaz para analistas de seguridad
+    \item Integración con SIEM (Security Information and Event Management)
+\end{itemize}
+
+\subsubsection{Análisis Forense}
+
+Aplicar el enfoque a análisis forense digital:
+\begin{itemize}
+    \item Identificación de familias en incidentes de seguridad
+    \item Clustering de muestras desconocidas
+    \item Trazabilidad de variantes de amenazas
+\end{itemize}
+
+\subsection{Investigación en Interpretabilidad}
+
+\subsubsection{Explicabilidad Mejorada}
+
+Desarrollar métodos más sofisticados para interpretar decisiones:
+\begin{itemize}
+    \item Análisis de sensibilidad local mediante perturbaciones
+    \item Identificación de características mínimas necesarias para clasificación
+    \item Generación de explicaciones en lenguaje natural para analistas
+\end{itemize}
+
+\subsubsection{Extracción de Conocimiento Experto}
+
+Utilizar los modelos entrenados para extraer conocimiento sobre diferencias estructurales entre familias que pueda informar análisis manual de malware.
+
+\subsection{Benchmarking y Estandarización}
+
+\subsubsection{Protocolo de Evaluación Estándar}
+
+Contribuir al establecimiento de protocolos de evaluación estandarizados para la comunidad:
+\begin{itemize}
+    \item Definición de splits de entrenamiento/validación/prueba reproducibles
+    \item Métricas estandarizadas considerando costos asimétricos (falsos negativos vs. falsos positivos)
+    \item Datasets de referencia actualizados periódicamente
+\end{itemize}
+
+\subsubsection{Challenge y Competición}
+
+Organizar competiciones académicas para impulsar avances en el campo, similar a challenges en visión por computador o NLP.
+
+% =============================================================================
+\section{Implicaciones para la Ciberseguridad}
+\label{sec:concl:implications}
+
+Los resultados de este proyecto tienen implicaciones significativas para la práctica de la ciberseguridad:
+
+\subsection{Para Profesionales de Seguridad}
+
+\begin{itemize}
+    \item \textbf{Automatización:} Reducción del esfuerzo manual en análisis de grandes volúmenes de muestras sospechosas.
+    \item \textbf{Velocidad:} Clasificación en tiempo prácticamente real permite respuesta más rápida a incidentes.
+    \item \textbf{Escalabilidad:} Capacidad de procesar cantidades masivas de datos sin incremento lineal en recursos humanos.
+\end{itemize}
+
+\subsection{Para Desarrolladores de Soluciones de Seguridad}
+
+\begin{itemize}
+    \item \textbf{Complementariedad:} Los métodos basados en Deep Learning pueden complementar (no reemplazar) soluciones tradicionales.
+    \item \textbf{Adaptabilidad:} Los modelos pueden reentrenarse periódicamente para adaptarse a nuevas amenazas.
+    \item \textbf{Multi-modal:} Posibilidad de fusionar análisis visual con otras técnicas para detección más robusta.
+\end{itemize}
+
+\subsection{Para la Investigación Académica}
+
+\begin{itemize}
+    \item \textbf{Fundamentos sólidos:} Este trabajo proporciona evidencia experimental sobre la viabilidad del enfoque visual.
+    \item \textbf{Dirección prometedora:} Se identifican múltiples líneas de investigación futuras con potencial impacto.
+    \item \textbf{Metodología reproducible:} El pipeline implementado facilita la extensión y comparación con nuevos métodos.
+\end{itemize}
+
+% =============================================================================
+\section{Lecciones Aprendidas}
+\label{sec:concl:lessons}
+
+Durante el desarrollo de este proyecto se adquirieron varias lecciones valiosas:
+
+\subsection{Técnicas}
+
+\begin{itemize}
+    \item \textbf{Importancia del preprocesamiento:} La calidad de las imágenes generadas impacta significativamente el rendimiento final.
+    \item \textbf{Balance entre complejidad y datos:} Modelos muy profundos pueden no ser necesarios con datasets limitados.
+    \item \textbf{Regularización esencial:} Dropout y data augmentation son críticos para evitar overfitting en este dominio.
+    \item \textbf{Transfer learning valioso:} Las características de bajo nivel de ImageNet son sorprendentemente transferibles.
+\end{itemize}
+
+\subsection{Prácticas}
+
+\begin{itemize}
+    \item \textbf{Experimentación sistemática:} La variación controlada de hiperparámetros es esencial para optimización.
+    \item \textbf{Validación rigurosa:} La evaluación en conjunto de prueba separado es imprescindible para estimaciones realistas.
+    \item \textbf{Interpretabilidad importante:} La capacidad de explicar decisiones es crucial para adopción en seguridad.
+\end{itemize}
+
+% =============================================================================
+\section{Consideraciones Éticas}
+\label{sec:concl:ethics}
+
+El desarrollo de herramientas automatizadas de análisis de malware plantea consideraciones éticas importantes:
+
+\subsection{Uso Responsable}
+
+Los modelos y técnicas desarrollados deben emplearse exclusivamente para:
+\begin{itemize}
+    \item Defensa legítima de sistemas y redes
+    \item Investigación académica con fines educativos
+    \item Análisis forense en el contexto de incidentes de seguridad
+\end{itemize}
+
+\textbf{Nunca} deben utilizarse para:
+\begin{itemize}
+    \item Desarrollo de nuevas amenazas
+    \item Evasión de sistemas de seguridad con intención maliciosa
+    \item Ataques a sistemas sin autorización explícita
+\end{itemize}
+
+\subsection{Transparencia}
+
+Es importante mantener transparencia sobre:
+\begin{itemize}
+    \item Limitaciones de los modelos (tasas de falsos negativos/positivos)
+    \item Datasets utilizados y sus sesgos inherentes
+    \item Condiciones bajo las cuales los resultados son válidos
+\end{itemize}
+
+\subsection{Privacidad y Confidencialidad}
+
+Al trabajar con muestras de malware reales, se debe:
+\begin{itemize}
+    \item Proteger cualquier información sensible que puedan contener los ejecutables
+    \item Cumplir con regulaciones de manejo de código malicioso
+    \item Evitar diseminación no controlada de muestras activas
+\end{itemize}
+
+% =============================================================================
+\section{Reflexiones Finales}
+\label{sec:concl:final-thoughts}
+
+La clasificación automatizada de malware mediante Deep Learning representa un área de investigación madura y prometedora en la intersección de inteligencia artificial y ciberseguridad. Este proyecto ha demostrado que el enfoque basado en análisis visual de ejecutables es técnicamente viable y puede alcanzar niveles de rendimiento competitivos con el estado del arte.
+
+Sin embargo, es fundamental reconocer que ninguna solución única resolverá por completo el problema de la detección de malware. Las amenazas continúan evolucionando, y los atacantes adaptan constantemente sus técnicas. Por lo tanto, los sistemas efectivos de ciberseguridad requieren enfoques en capas (defense in depth) que combinen múltiples técnicas complementarias.
+
+El Deep Learning, y específicamente las CNN aplicadas a representaciones visuales, constituyen una herramienta poderosa en el arsenal del defensor, pero deben emplearse en conjunto con:
+\begin{itemize}
+    \item Análisis heurístico y basado en firmas
+    \item Detección comportamental
+    \item Inteligencia de amenazas
+    \item Supervisión humana experta
+\end{itemize}
+
+La investigación futura debe enfocarse no solo en mejorar la precisión de los modelos, sino también en su robustez, interpretabilidad, y aplicabilidad práctica en entornos de producción con requisitos estrictos de latencia y confiabilidad.
+
+% =============================================================================
+\section{Conclusión}
+\label{sec:concl:conclusion}
+
+Este proyecto ha explorado exitosamente la aplicación de Redes Neuronales Convolucionales para la clasificación de familias de malware mediante análisis visual de ejecutables. Los resultados experimentales confirman la hipótesis inicial: las CNN son capaces de aprender automáticamente representaciones discriminativas que permiten clasificación efectiva de malware.
+
+Se han realizado contribuciones tanto técnicas (evaluación comparativa exhaustiva, análisis de generalización, estudio de interpretabilidad) como prácticas (identificación de limitaciones reales, recomendaciones para despliegue).
+
+Las direcciones de trabajo futuro identificadas ofrecen oportunidades prometedoras para avanzar el estado del arte en este campo crítico para la seguridad de sistemas informáticos modernos.
+
+En última instancia, este trabajo contribuye a la creciente evidencia de que las técnicas de Deep Learning representan una herramienta valiosa y cada vez más madura para abordar desafíos complejos en ciberseguridad, con potencial para impacto real en la protección de infraestructuras digitales frente a amenazas en constante evolución.
