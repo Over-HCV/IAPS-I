@@ -2,11 +2,10 @@
 
 from datetime import datetime
 import threading
-from typing import Any
 
-from models.pytorch.cnn_builder import CustomCNNBuilder
-from models.pytorch.transfer import TransferLearningBuilder
-from models.pytorch.transformer import TransformerBuilder
+import torch
+
+from models.registry import build_model
 from state.persistence import (
     get_dataset_config_from_file,
     get_experiment_from_file,
@@ -15,7 +14,6 @@ from state.persistence import (
     write_experiment_update,
 )
 from state.workflow import get_session_id, update_experiment
-import torch
 from training.dataset import create_dataloaders
 from training.engine import TrainingEngine
 from training.optimizers import create_criterion, create_optimizer, create_scheduler
@@ -24,22 +22,6 @@ from utils.checkpoint_manager import CheckpointManager
 # Global registry for active training engines
 _active_engines: dict[str, TrainingEngine] = {}
 _training_threads: dict[str, threading.Thread] = {}
-
-
-def build_model(model_config: dict[str, Any]) -> torch.nn.Module:
-    """Build PyTorch model from config."""
-    model_type = model_config.get("model_type")
-
-    if model_type == "Custom CNN":
-        builder = CustomCNNBuilder(model_config)
-    elif model_type == "Transfer Learning":
-        builder = TransferLearningBuilder(model_config)
-    elif model_type == "Transformer":
-        builder = TransformerBuilder(model_config)
-    else:
-        raise ValueError(f"Unknown model type: {model_type}")
-
-    return builder.build()
 
 
 def _run_training(session_id: str, experiment_id: str):

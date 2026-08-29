@@ -1,7 +1,7 @@
 {
   "session_id": "bright-frosty-owl",
-  "created_at": "2026-08-28T05:16:01.539993",
-  "active_dataset": "diabetes.csv",
+  "created_at": "2026-08-28T06:02:58.150453",
+  "active_dataset": "sample",
   "dataset_config": {
     "dataset_path": "dataset",
     "total_samples": 23567,

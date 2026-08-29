@@ -2,6 +2,8 @@
 Layer Renderer - UI components for rendering and editing layers
 """
 
+import streamlit as st
+
 from content.model.layer_builder import (
     add_layer,
     duplicate_layer,
@@ -21,7 +23,6 @@ from content.model.layer_configs import (
     get_layer_display,
     validate_layer_stack,
 )
-import streamlit as st
 
 
 def render_preset_selector():

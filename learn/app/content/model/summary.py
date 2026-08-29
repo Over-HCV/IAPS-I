@@ -3,45 +3,59 @@
 from datetime import datetime
 from typing import Any
 
-from state.workflow import save_model_config
 import streamlit as st
+
+from models.registry import get_family
+from state.workflow import save_model_config
 
 
 def build_config(
     model_type: str,
     num_classes: int,
-    cnn_config: dict | None,
-    transfer_config: dict | None,
-    transformer_config: dict | None,
+    architecture_config: dict | None,
 ) -> dict[str, Any]:
-    """Build complete model configuration"""
+    """Build complete model configuration.
+
+    The registry says which key the builder reads its architecture from, so a
+    new family needs no branch here.
+    """
     config = {
         "model_type": model_type,
         "num_classes": num_classes,
         "timestamp": datetime.now().isoformat(),
     }
 
-    if model_type == "Custom CNN" and cnn_config:
-        num_layers = len(cnn_config.get("layers", []))
-        config["architecture"] = f"CNN_{num_layers}_layers"
-        config["cnn_config"] = cnn_config
-        config["implementation"] = "pytorch"
+    family = get_family(model_type)
+    if family is None or not architecture_config:
+        return config
 
-    elif model_type == "Transfer Learning" and transfer_config:
-        config["architecture"] = (
-            f"{transfer_config['base_model']}_{transfer_config['strategy'].replace(' ', '_')}"
-        )
-        config["transfer_config"] = transfer_config
-        config["implementation"] = "pytorch"
-
-    elif model_type == "Transformer" and transformer_config:
-        config["architecture"] = (
-            f"ViT_D{transformer_config['depth']}_H{transformer_config['num_heads']}"
-        )
-        config["transformer_config"] = transformer_config
-        config["implementation"] = "manual"
+    config[family.config_key] = architecture_config
+    config["architecture"] = _architecture_label(model_type, architecture_config)
+    config["implementation"] = "manual" if model_type == "Transformer" else "pytorch"
 
     return config
+
+
+def _architecture_label(model_type: str, architecture_config: dict) -> str:
+    """Short human-readable name for the configured architecture"""
+    if model_type == "Custom CNN":
+        return f"CNN_{len(architecture_config.get('layers', []))}_layers"
+
+    if model_type == "Transfer Learning":
+        strategy = architecture_config["strategy"].replace(" ", "_")
+        return f"{architecture_config['base_model']}_{strategy}"
+
+    if model_type == "Transformer":
+        return (
+            f"ViT_D{architecture_config['depth']}"
+            f"_H{architecture_config['num_heads']}"
+        )
+
+    if model_type == "Tabular MLP":
+        widths = "x".join(str(w) for w in architecture_config.get("hidden_layers", []))
+        return f"MLP_{widths}" if widths else "MLP"
+
+    return model_type
 
 
 def render_summary(model_config: dict[str, Any]):
@@ -54,7 +68,7 @@ def render_summary(model_config: dict[str, Any]):
     with col1:
         st.metric("Model Type", model_config["model_type"])
     with col2:
-        st.metric("Architecture", model_config["architecture"])
+        st.metric("Architecture", model_config.get("architecture", "Not configured"))
     with col3:
         st.metric("Output Classes", model_config["num_classes"])
 

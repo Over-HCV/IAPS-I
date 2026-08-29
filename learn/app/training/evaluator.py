@@ -7,8 +7,9 @@ from sklearn.metrics import (
     precision_recall_fscore_support,
 )
 import torch
+
+from models.registry import build_model
 from training.dataset import create_dataloaders
-from training.worker import build_model
 from utils.checkpoint_manager import CheckpointManager
 
 

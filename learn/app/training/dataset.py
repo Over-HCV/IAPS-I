@@ -1,4 +1,9 @@
-"""PyTorch Dataset and DataLoader for malware images"""
+"""Sample datasets, splitting, and the dataloader entry point.
+
+The kind-specific assembly lives in training/providers; what stays here is the
+primitives every kind shares - splitting and class weighting - plus the image
+sample dataset itself.
+"""
 
 from collections import Counter
 from pathlib import Path
@@ -8,12 +13,9 @@ from sklearn.model_selection import train_test_split
 import torch
 from torch.utils.data import DataLoader, Dataset, WeightedRandomSampler
 
-from training.transforms import create_train_transforms, create_val_transforms
-from utils.dataset_registry import resolve_dataset_path
 
-
-class MalwareDataset(Dataset):
-    """PyTorch Dataset for malware images."""
+class ImageSampleDataset(Dataset):
+    """Images loaded from disk, with integer class labels."""
 
     def __init__(self, image_paths: list[Path], labels: list[int], transform=None):
         self.image_paths = image_paths
@@ -134,118 +136,15 @@ def create_dataloaders(
     num_workers: int = 4,
 ) -> tuple[dict[str, DataLoader], list[str], torch.Tensor | None]:
     """
-    Create DataLoaders from dataset and training configs.
+    Create DataLoaders for whichever kind of data the config describes.
 
     Returns:
         dataloaders: Dict with 'train', 'val', 'test' DataLoaders
         class_names: List of class names
         class_weights: Tensor of class weights (if using class weighting)
     """
-    # Get dataset path
-    dataset_path = resolve_dataset_path(dataset_config)
-    if not dataset_path.is_dir():
-        raise FileNotFoundError(f"Dataset directory not found: {dataset_path}")
+    # Imported here rather than at module scope: the providers import the
+    # splitting primitives above, so a top-level import would be circular.
+    from training.providers import build_dataloaders
 
-    selected_families = dataset_config.get("selected_families")
-
-    # Scan dataset
-    image_paths, labels, class_names = scan_dataset(dataset_path, selected_families)
-    num_classes = len(class_names)
-
-    print(f"[Dataset] Found {len(image_paths)} images in {num_classes} classes")
-
-    # Get split config
-    split_config = dataset_config.get("split", {})
-    train_ratio = split_config.get("train", 70) / 100.0
-    val_ratio = split_config.get("val", 15) / 100.0
-    test_ratio = split_config.get("test", 15) / 100.0
-    stratified = split_config.get("stratified", True)
-    random_seed = split_config.get("random_seed", 72)
-
-    # Create splits
-    splits = create_splits(
-        image_paths,
-        labels,
-        train_ratio=train_ratio,
-        val_ratio=val_ratio,
-        test_ratio=test_ratio,
-        stratified=stratified,
-        random_seed=random_seed,
-    )
-
-    print(
-        f"[Dataset] Splits: train={len(splits['train']['paths'])}, val={len(splits['val']['paths'])}, test={len(splits['test']['paths'])}"
-    )
-
-    # Create transforms
-    train_transform = create_train_transforms(dataset_config)
-    val_transform = create_val_transforms(dataset_config)
-
-    # Create datasets
-    train_dataset = MalwareDataset(
-        splits["train"]["paths"],
-        splits["train"]["labels"],
-        transform=train_transform,
-    )
-    val_dataset = MalwareDataset(
-        splits["val"]["paths"],
-        splits["val"]["labels"],
-        transform=val_transform,
-    )
-    test_dataset = MalwareDataset(
-        splits["test"]["paths"],
-        splits["test"]["labels"],
-        transform=val_transform,
-    )
-
-    # Get training config
-    batch_size = training_config.get("batch_size", 32)
-    class_weight_method = training_config.get("class_weights", "None")
-
-    # Compute class weights if needed
-    class_weights = None
-    sampler = None
-
-    if class_weight_method == "Auto Class Weights":
-        class_weights = compute_class_weights(splits["train"]["labels"], num_classes)
-        print(
-            f"[Dataset] Using class weights (range: {class_weights.min():.2f} - {class_weights.max():.2f})"
-        )
-        # Use weighted sampler for balanced batches
-        sampler = create_weighted_sampler(splits["train"]["labels"], num_classes)
-    elif class_weight_method == "Focal Loss":
-        class_weights = compute_class_weights(splits["train"]["labels"], num_classes)
-        print(f"[Dataset] Using Focal Loss with class weights")
-
-    # Disable pin_memory on MPS (not supported)
-    import torch
-
-    use_pin_memory = torch.cuda.is_available()
-
-    # Create dataloaders
-    dataloaders = {
-        "train": DataLoader(
-            train_dataset,
-            batch_size=batch_size,
-            sampler=sampler,
-            shuffle=(sampler is None),
-            num_workers=num_workers,
-            pin_memory=use_pin_memory,
-        ),
-        "val": DataLoader(
-            val_dataset,
-            batch_size=batch_size,
-            shuffle=False,
-            num_workers=num_workers,
-            pin_memory=use_pin_memory,
-        ),
-        "test": DataLoader(
-            test_dataset,
-            batch_size=batch_size,
-            shuffle=False,
-            num_workers=num_workers,
-            pin_memory=use_pin_memory,
-        ),
-    }
-
-    return dataloaders, class_names, class_weights
+    return build_dataloaders(dataset_config, training_config, num_workers)

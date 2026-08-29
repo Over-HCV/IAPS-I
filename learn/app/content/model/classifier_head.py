@@ -4,6 +4,7 @@ Mini layer builder for Transfer Learning's classification head (Dense/Dropout/Ba
 """
 
 import uuid
+
 import streamlit as st
 
 # Layer types available for classifier head

@@ -1,5 +1,7 @@
 """Custom CNN configuration UI"""
 
+import streamlit as st
+
 from content.model.layer_builder import export_layer_stack, init_layer_stack
 from content.model.layer_renderer import (
     render_add_layer_section,
@@ -8,7 +10,6 @@ from content.model.layer_renderer import (
     render_preset_selector,
     render_validation_status,
 )
-import streamlit as st
 
 
 def render(num_classes: int) -> dict:

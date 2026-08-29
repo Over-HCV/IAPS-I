@@ -1,5 +1,9 @@
 """Other sections (Activation Maps, Filters) for interpretability page."""
 
+from PIL import Image
+import streamlit as st
+import torch
+
 from content.interpret.engine.activations import (
     get_activation_maps,
     get_filter_weights,
@@ -10,11 +14,8 @@ from content.interpret.engine.gradcam import get_conv_layers
 from content.interpret.engine.model_loader import load_experiment_model
 from content.interpret.sections.lime import render_lime_section
 from content.interpret.tooltips import ACTIVATION_TOOLTIPS, FILTER_TOOLTIPS
-from PIL import Image
 from state.persistence import get_dataset_config_from_file
 from state.workflow import get_session_id
-import streamlit as st
-import torch
 from training.transforms import create_val_transforms
 
 

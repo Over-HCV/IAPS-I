@@ -1,8 +1,16 @@
 """Model Configuration Page - Main Orchestrator with Library"""
 
+import streamlit as st
+
 from components.model_card import render_model_library
-from content.model import custom_cnn, summary, transfer_learning, transformer
-from content.model.tooltips import MODEL_TYPES
+from content.model import (
+    custom_cnn,
+    summary,
+    tabular_mlp,
+    transfer_learning,
+    transformer,
+)
+from models.registry import families_for, get_family
 from state.workflow import (
     add_model_to_library,
     delete_model_from_library,
@@ -12,7 +20,6 @@ from state.workflow import (
     has_dataset_config,
     update_model_in_library,
 )
-import streamlit as st
 
 
 def render():
@@ -30,6 +37,21 @@ def render():
         st.error("Dataset has no classes configured")
         st.stop()
 
+    # Which architectures are offered depends on the kind of data configured,
+    # so a CSV never shows an image model and vice versa.
+    families = families_for(
+        dataset_config.get("dataset_kind", "image_folder"),
+        dataset_config.get("task", "classification"),
+    )
+
+    if not families:
+        st.error(
+            "No model architecture supports this dataset yet. "
+            f"Kind: {dataset_config.get('dataset_kind')}, "
+            f"task: {dataset_config.get('task')}."
+        )
+        st.stop()
+
     # Initialize editor state
     if "model_editor_mode" not in st.session_state:
         st.session_state.model_editor_mode = None  # None, "new", or model_id
@@ -43,7 +65,7 @@ def render():
 
     # Section 2: Model Editor (if active)
     if st.session_state.model_editor_mode is not None:
-        _render_model_editor(num_classes)
+        _render_model_editor(num_classes, families, dataset_config)
 
 
 def _render_model_library():
@@ -123,6 +145,16 @@ def _load_model_into_editor(model: dict):
         st.session_state.transfer_dense_units = transfer_cfg.get("dense_units", 512)
         st.session_state.transfer_dropout = transfer_cfg.get("dropout", 0.5)
 
+    elif model_type == "Tabular MLP":
+        mlp_cfg = config.get("mlp_config", {})
+        hidden_layers = mlp_cfg.get("hidden_layers", [])
+        st.session_state.mlp_num_layers = len(hidden_layers) or 1
+        for index, width in enumerate(hidden_layers):
+            st.session_state[f"mlp_layer_{index}"] = width
+        st.session_state.mlp_activation = mlp_cfg.get("activation", "ReLU")
+        st.session_state.mlp_dropout = mlp_cfg.get("dropout", 0.2)
+        st.session_state.mlp_batch_norm = mlp_cfg.get("batch_norm", True)
+
     elif model_type == "Transformer":
         transformer_cfg = config.get("transformer_config", {})
         st.session_state.transformer_patch_size = transformer_cfg.get("patch_size", 16)
@@ -133,7 +165,7 @@ def _load_model_into_editor(model: dict):
         st.session_state.transformer_dropout = transformer_cfg.get("dropout", 0.1)
 
 
-def _render_model_editor(num_classes: int):
+def _render_model_editor(num_classes: int, families, dataset_config: dict):
     """Render the model editor section"""
     is_new = st.session_state.model_editor_mode == "new"
 
@@ -158,24 +190,15 @@ def _render_model_editor(num_classes: int):
     st.divider()
 
     # Model type selection
-    model_type = _render_model_type_selection()
+    model_type = _render_model_type_selection(families)
 
     # Architecture configuration
-    cnn_config = None
-    transformer_config = None
-    transfer_config = None
-
-    if model_type == "Custom CNN":
-        cnn_config = custom_cnn.render(num_classes)
-    elif model_type == "Transformer":
-        transformer_config = transformer.render(num_classes)
-    else:  # Transfer Learning
-        transfer_config = transfer_learning.render(num_classes)
+    architecture_config = _render_architecture_editor(
+        model_type, num_classes, dataset_config
+    )
 
     # Build config
-    model_config = summary.build_config(
-        model_type, num_classes, cnn_config, transfer_config, transformer_config
-    )
+    model_config = summary.build_config(model_type, num_classes, architecture_config)
 
     if model_config:
         summary.render_summary(model_config)
@@ -185,27 +208,43 @@ def _render_model_editor(num_classes: int):
         _render_save_to_library(model_name, model_config, is_new)
 
 
-def _render_model_type_selection():
-    """Section: Choose model architecture type"""
-    st.subheader("Architecture Type", help="Choose the neural network architecture for your model.")
+def _render_model_type_selection(families):
+    """Section: Choose model architecture type from the families that apply"""
+    st.subheader(
+        "Architecture Type",
+        help="Only architectures that suit the configured dataset are listed.",
+    )
 
+    names = [family.name for family in families]
     model_type = st.segmented_control(
         "Select Model Type",
-        options=["Custom CNN", "Transformer", "Transfer Learning"],
-        default="Custom CNN",
+        options=names,
+        default=names[0],
         key="model_type",
     )
 
-    # Use tooltips from centralized file
-    descriptions = {
-        "Custom CNN": f"🔧 **{MODEL_TYPES['custom_cnn']['name']}**: {MODEL_TYPES['custom_cnn']['description']}",
-        "Transformer": f"🧪 **{MODEL_TYPES['transformer']['name']}**: {MODEL_TYPES['transformer']['description']}",
-        "Transfer Learning": f"🎯 **{MODEL_TYPES['transfer_learning']['name']}**: {MODEL_TYPES['transfer_learning']['description']}",
-    }
+    # segmented_control returns None until a choice is registered
+    if model_type is None:
+        model_type = names[0]
 
-    st.info(descriptions.get(model_type, ""))
+    selected = next(family for family in families if family.name == model_type)
+    st.info(selected.description)
 
     return model_type
+
+
+def _render_architecture_editor(model_type: str, num_classes: int, dataset_config: dict):
+    """Delegate to the editor for the chosen architecture"""
+    if model_type == "Custom CNN":
+        return custom_cnn.render(num_classes)
+
+    if model_type == "Transformer":
+        return transformer.render(num_classes)
+
+    if model_type == "Tabular MLP":
+        return tabular_mlp.render(num_classes, dataset_config.get("input_dim", 0))
+
+    return transfer_learning.render(num_classes)
 
 
 def _render_save_to_library(model_name: str, model_config: dict, is_new: bool):
@@ -217,11 +256,12 @@ def _render_save_to_library(model_name: str, model_config: dict, is_new: bool):
             st.warning("Please enter a model name")
 
     with col2:
-        # Check validation for Custom CNN
-        is_valid = True
-        if model_config.get("model_type") == "Custom CNN":
-            cnn_cfg = model_config.get("cnn_config", {})
-            is_valid = cnn_cfg.get("is_valid", False)
+        # Editors that can be misconfigured report is_valid on their config
+        family = get_family(model_config.get("model_type"))
+        architecture_config = (
+            model_config.get(family.config_key, {}) if family else {}
+        )
+        is_valid = architecture_config.get("is_valid", True)
 
         can_save = bool(model_name.strip()) and is_valid
 

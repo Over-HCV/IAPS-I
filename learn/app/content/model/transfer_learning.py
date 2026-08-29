@@ -1,8 +1,9 @@
 """Transfer Learning configuration UI"""
 
+import streamlit as st
+
 from config import PRETRAINED_MODELS
 from content.model.classifier_head import export_classifier_head, render_classifier_head
-import streamlit as st
 
 
 def _init_state():

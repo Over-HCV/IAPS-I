@@ -1,9 +1,10 @@
 """LIME explanation utilities."""
 
-from content.interpret.engine.misclassifications import tensor_to_image
 import numpy as np
 import torch
 import torch.nn as nn
+
+from content.interpret.engine.misclassifications import tensor_to_image
 
 
 def compute_lime_explanation(

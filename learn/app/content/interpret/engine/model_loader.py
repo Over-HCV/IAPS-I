@@ -1,10 +1,11 @@
 """Model loading utilities for interpretability."""
 
-from state.persistence import get_model_from_file
-from state.workflow import get_experiments, get_session_id
 import torch
 import torch.nn as nn
-from training.worker import build_model
+
+from models.registry import build_model
+from state.persistence import get_model_from_file
+from state.workflow import get_experiments, get_session_id
 from utils.checkpoint_manager import CheckpointManager
 
 

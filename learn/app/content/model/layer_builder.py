@@ -2,10 +2,11 @@
 Layer Builder - Functions to manipulate the layer stack in session state
 """
 
-import streamlit as st
-import uuid
-from typing import Any
 import copy
+from typing import Any
+import uuid
+
+import streamlit as st
 
 from content.model.layer_configs import PRESETS, get_default_params
 

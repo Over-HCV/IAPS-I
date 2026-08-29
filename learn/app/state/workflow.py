@@ -159,6 +159,11 @@ def _clear_dataset_scoped_state() -> None:
         "majority_classes",
         "class_weights",
         "_dataset_config_loaded",
+        # Tabular: target and feature choice belong to one specific CSV
+        "csv_target_column",
+        "tabular_features",
+        "feature_selector",
+        "_dataset_scan_key",
     ]
     keys_to_clear.extend(
         key for key in st.session_state if key.startswith("weight_")
