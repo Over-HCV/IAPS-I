@@ -8,7 +8,14 @@ from mesa.examples.basic.boltzmann_wealth_model.model import BoltzmannWealth
 from mesa.examples.basic.conways_game_of_life.model import ConwaysGameOfLife
 from mesa.examples.basic.schelling.model import Schelling
 from mesa.examples.basic.virus_on_network.model import VirusOnNetwork
-from mesa.examples.experimental.tram_model.model import TransitSystem
+
+# El tram_model vive en mesa.examples.experimental, que solo existe en Mesa 4.x. El
+# entorno usa Mesa 3.5.1, donde mesa.examples solo trae `basic` y `advanced`, así que el
+# import se hace tolerante en vez de romper todo el paquete.
+try:
+    from mesa.examples.experimental.tram_model.model import TransitSystem
+except ModuleNotFoundError:  # pragma: no cover - depende de la versión de Mesa
+    TransitSystem = None  # type: ignore[assignment,misc]
 
 __all__ = [
     "BoidFlockers",

@@ -1,58 +1,44 @@
-# Mesa Core Examples
-This repository contains a curated set of classic agent-based models implemented using Mesa. These core examples are maintained by the Mesa development team and serve as both demonstrations of Mesa's capabilities and starting points for your own models.
+# `project/` — proyecto final y ejemplos de referencia
 
-## Overview
-The examples are categorized into three groups:
-1. **Basic Examples** - Simpler models that use only stable Mesa features; ideal for beginners
-2. **Advanced Examples** - More complex models that demonstrate additional concepts and may use some experimental features
-3. **Experimental Examples** - Models built on experimental Mesa APIs that may change without notice
+Esta carpeta contiene dos cosas distintas que conviene no confundir.
 
-> **Note:** Looking for more examples? Visit the [mesa-examples](https://github.com/mesa/mesa-examples) repository for user-contributed models and showcases.
+## 1. El proyecto final: [`oasys_abm/`](oasys_abm/)
 
-## Basic Examples
-The basic examples are relatively simple and only use stable Mesa features. They are good starting points for learning how to use Mesa.
+**Planes auto-editables: lazo abierto vs. replanificación.** Modelo basado en agentes que
+mide bajo qué condiciones del entorno un agente que reescribe su propio plan supera a uno
+con plan estático, y a partir de qué costo de reescritura la ventaja se invierte.
 
-_An online version of these examples is [available here](https://py.cafe/app/EwoutH/mesa-solara-basic-examples)._
+Entrar por [`oasys_abm/README.md`](oasys_abm/README.md). Los tres documentos de diseño se
+leen en orden:
 
-### [Boltzmann Wealth Model](examples/basic/boltzmann_wealth_model)
-Completed code to go along with the [tutorial](https://mesa.readthedocs.io/latest/tutorials/0_first_model.html) on making a simple model of how a highly-skewed wealth distribution can emerge from simple rules.
+| Documento | Contenido |
+|---|---|
+| [`oasys_abm/docs/00-rationale.md`](oasys_abm/docs/00-rationale.md) | Por qué este proyecto y por qué no los otros. Hipótesis falsables |
+| [`oasys_abm/docs/01-mapping.md`](oasys_abm/docs/01-mapping.md) | Diccionario OASys ↔ Russell & Norvig ↔ MESA |
+| [`oasys_abm/docs/02-design.md`](oasys_abm/docs/02-design.md) | PEAS, arquitecturas de agente, métricas, plan de barrido, controles de sanidad |
 
-### [Boids Flockers Model](examples/basic/boid_flockers)
-[Boids](https://en.wikipedia.org/wiki/Boids)-style flocking model, demonstrating the use of agents moving through a continuous space following direction vectors.
+Para ver resultados sin leer nada antes:
 
-### [Conway's Game of Life](examples/basic/conways_game_of_life)
-Implementation of [Conway's Game of Life](https://en.wikipedia.org/wiki/Conway%27s_Game_of_Life), a cellular automata where simple rules can give rise to complex patterns.
+```bash
+PYTHONPATH=project uv run python -m oasys_abm.analysis --controles   # ¿los datos son creíbles?
+PYTHONPATH=project uv run python -m oasys_abm.analysis --figuras     # las cinco figuras
+```
 
-### [Schelling Segregation Model](examples/basic/schelling)
-Mesa implementation of the classic [Schelling segregation](http://nifty.stanford.edu/2014/mccown-schelling-model-segregation/) model.
+## 2. Ejemplos de Mesa vendorizados: `basic/`, `advanced/`, `experimental/`
 
-### [Virus on a Network Model](examples/basic/virus_on_network)
-This model is based on the NetLogo [Virus on a Network](https://ccl.northwestern.edu/netlogo/models/VirusonaNetwork) model.
+Copia local de los modelos de ejemplo de
+[projectmesa/mesa-examples](https://github.com/projectmesa/mesa) —Schelling, Boids, Game of
+Life, Wolf-Sheep, Sugarscape, Epstein, tram model— usada como material de referencia del
+curso, no como parte del proyecto. Cada subcarpeta trae su propio `Readme.md` y su `app.py`
+de Solara:
 
-## Advanced Examples
-The advanced examples are more complex and may use experimental Mesa features. They are good starting points for learning how to build more complex models.
+```bash
+uv run solara run project/basic/schelling/app.py
+```
 
-### [Epstein Civil Violence Model](examples/advanced/epstein_civil_violence)
-Joshua Epstein's [model](https://www.pnas.org/doi/10.1073/pnas.092080199) of how a decentralized uprising can be suppressed or reach a critical mass of support.
+## Por qué `PYTHONPATH=project`
 
-### [Demographic Prisoner's Dilemma on a Grid](examples/advanced/pd_grid)
-Grid-based demographic prisoner's dilemma model, demonstrating how simple rules can lead to the emergence of widespread cooperation -- and how a model activation regime can change its outcome.
-
-### [Sugarscape Model with Traders](examples/advanced/sugarscape_g1mt)
-This is Epstein & Axtell's Sugarscape model with Traders, a detailed description is in
-<!-- vale Google.WordList = NO -->
-Chapter four of *Growing Artificial Societies: Social Science from the Bottom Up (1996)*.
-<!-- vale Google.WordList = YES -->
-The model shows how emergent price equilibrium can happen via decentralized dynamics.
-
-### [Wolf-Sheep Predation Model](examples/advanced/wolf_sheep)
-Implementation of an ecological model of predation and reproduction, based on the NetLogo [Wolf Sheep Predation](http://ccl.northwestern.edu/netlogo/models/WolfSheepPredation) model.
-
-### [Alliance Formation Model](examples/advanced/alliance_formation)
-Demonstrates `mesa.meta_agents`: agents form alliances through a game-theoretic process, and the resulting alliances become meta-agents that can themselves form higher-level alliances.
-
-## Experimental Examples
-The experimental examples are built on Mesa APIs that live under `mesa.experimental` and carry no semver guarantees. They show where Mesa is heading, but both the models and the APIs they use may change without notice.
-
-### [Tram Route Model](examples/experimental/tram_model)
-Demonstrates continuous states and thresholds: a tram accelerates, coasts, brakes and dwells its way along a route, with every transition solved for analytically and scheduled on the event queue rather than polled for on each tick.
+`project/__init__.py` reexporta `mesa.examples.*` para los ejemplos de arriba, e importa
+`mesa.examples.experimental`, que no existe en la Mesa 3.5.1 del entorno. Para que el
+proyecto final no arrastre esa dependencia, `oasys_abm` se usa como **paquete de primer
+nivel**: se pone `project/` en la ruta de importación en vez de colgar de `project.__init__`.
