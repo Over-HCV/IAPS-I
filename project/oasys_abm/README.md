@@ -40,6 +40,7 @@ agents.py        Las 6 arquitecturas de agente
 model.py         OASysWorld(Model) — retícula, recursos móviles, DataCollector
 experiments.py   Barridos con batch_run
 analysis.py      Lectura de los CSV, controles de sanidad y las figuras
+animacion.py     Una corrida tick a tick: traza, animación jshtml y figura estática
 tests/           Invariantes y controles de sanidad
 notebook.ipynb   Entregable del curso
 results/         CSV de los barridos y figuras/*.png
@@ -94,6 +95,11 @@ palabra:
 from oasys_abm import analysis as an
 an.fig_frontera(backend="plotly")   # o an.BACKEND = "plotly" para todas
 ```
+
+`animacion.py` hace lo mismo para una corrida concreta: `traza_corrida` devuelve un
+`Frame` por tick —posición, creencias, plan vivo, acción ejecutada, ediciones— y `animar`
+los pinta en cuatro paneles. `mostrar()` es lo que llama el cuaderno; con
+`animacion.MODO = "estatico"` la misma corrida sale como una sola figura.
 
 > **Por qué el `PYTHONPATH`.** El paquete no cuelga de `project/__init__.py`: ese módulo
 > es la copia vendorizada de los ejemplos de Mesa y reexporta `mesa.examples.*`, que en
