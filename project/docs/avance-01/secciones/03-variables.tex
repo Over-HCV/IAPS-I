@@ -1,0 +1,75 @@
+% !TEX root = ../main-es.tex
+% Las cajas de ayuda no son contenido: texcount las ignora (ver `make wordcount`).
+%TC:macro \limite [ignore,ignore]
+%TC:macro \nota [ignore]
+%TC:macro \TODO [ignore]
+%TC:macro \parencite [ignore]
+%TC:macro \textcite [ignore]
+
+\section{Variables de seguimiento}
+\limite{0}{Variables de seguimiento: señale las principales variables del sistema a las
+que hará seguimiento, justificando por qué son relevantes para comprender el
+comportamiento del modelo.}
+
+
+El seguimiento separa dos clases de variables: Los \textbf{parámetros que se barren}
+(condiciones del entorno y del agente) y las \textbf{métricas de respuesta} (lo que el
+modelo reporta corrida a corrida). Las primeras explican el comportamiento y las segundas lo miden. El conjunto $c$, $\kappa$ y $B$ no es una colección arbitraria de constantes sino una política de deliberación explícita en el sentido del metarazonamiento y la racionalidad acotada \parencite{zilberstein2011metareasoning}, donde pensar es una acción con costo que compite con actuar.
+
+\begin{table}[ht]
+\centering
+\small
+\begin{tabular}{@{}l L{2.2cm} L{6.2cm}@{}}
+\toprule
+\textbf{Símbolo} & \textbf{Nombre} & \textbf{Por qué es relevante} \\
+\midrule
+$\lambda$ & Dinamismo & Probabilidad por tick de que un recurso se mueva. Es el eje del
+experimento: Barre de entorno estático ($\lambda=0$) a muy dinámico y sobre él se
+localiza la frontera de fase entre plan estático y auto-edición \\ \sepfilas
+$p$ & Competencia & Probabilidad de que la edición del oráculo sea correcta. Determina
+desde qué calidad del replanificador vale la pena auto-editarse \\ \sepfilas
+$c$ & Costo de edición & Ticks que ocupa una deliberación. Es el precio de replanificar
+(con $\lambda$ define el punto de cruce de la pregunta de investigación) \\ \sepfilas
+$r$ & Radio de visión & Observabilidad parcial: Solo se ve dentro del radio. Modela qué
+parte del programa conoce el agente en el sistema real \\ \sepfilas
+$B$ & Presupuesto & Ediciones permitidas al agente gobernado ($B=\infty$ lo apaga).
+Prueba si acotar la replanificación la mejora \\ \sepfilas
+$\kappa$ & Precio de deliberar & Costo adicional por tick pensando (tokens, dinero).
+Separa ``deliberar cuesta tiempo'' de ``deliberar cuesta recursos'' \\
+\bottomrule
+\end{tabular}
+\caption{Parámetros del barrido experimental: El plano $(\lambda, c)$ es donde se busca la
+frontera, mientras que $p$, $r$, $B$ y $\kappa$ la desplazan.}
+\end{table}
+
+\begin{table}[ht]
+\centering
+\small
+\begin{tabular}{@{}l L{7.2cm}@{}}
+\toprule
+\textbf{Métrica} & \textbf{Por qué se sigue} \\
+\midrule
+\texttt{entregas} & Rendimiento bruto, sin castigo. Junto a la siguiente distingue entre ``hacer más'' y ``hacer más pero gastarlo pensando''\\ \sepfilas
+\texttt{utilidad\_neta} & Recursos entregados penalizados por el tiempo deliberando. $w\cdot\text{entregas} - \kappa\cdot\text{pasos\_deliberando}$: Medida compuesta con la que se ordenan todas las políticas \\ \sepfilas
+\texttt{n\_ediciones} & Intensidad de la replanificación: Cuántas veces el agente
+ efectivamente reescribió su plan \\ \sepfilas
+\texttt{n\_ediciones\_desperdiciadas} & Ediciones seguidas de otra divergencia antes de
+ejecutar $k$ líneas, más deliberaciones interrumpidas. Es la medida operacional del
+\emph{thrashing}: Replanificar sin avanzar \\ \sepfilas
+\texttt{carga\_perdida} & Recursos soltados por un reinicio en frío. Es el trabajo en
+ vuelo que el modo actual del sistema real descarta y que el modo caliente conservaría \\ \sepfilas
+\texttt{divergencias\_reales/detectadas} & Veces que el plan dejó de ser válido en el
+mundo contra las que el agente percibió. Su emparejamiento acota la medición y evita
+contar detecciones espurias \\ \sepfilas
+\texttt{ceguera} & Fracción de divergencias nunca notadas ($1 -
+\text{detectadas}/\text{reales}$). Efecto neto de la observabilidad parcial \\ \sepfilas
+\texttt{latencia\_deteccion} & Ticks entre que una divergencia ocurre y el agente la
+nota. La medida útil del costo de ver poco: Con radio pequeño el agente no pierde las
+divergencias, sino que llega tarde a ellas \\
+\bottomrule
+\end{tabular}
+\caption{Métricas de respuesta recogidas con \texttt{DataCollector} en cada corrida: La
+utilidad neta ordena las políticas y el resto explica por qué.}
+\end{table}
+
+% \nota{En el documento final, estas tablas se reemplazan por los resultados del barrido (8.100 corridas ya ejecutadas en \texttt{project/results/}); el avance solo declara qué se sigue y por qué.}

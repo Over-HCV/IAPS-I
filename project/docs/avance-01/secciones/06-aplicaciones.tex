@@ -1,0 +1,46 @@
+% !TEX root = ../main-es.tex
+% Las cajas de ayuda no son contenido: texcount las ignora (ver `make wordcount`).
+%TC:macro \limite [ignore,ignore]
+%TC:macro \nota [ignore]
+%TC:macro \TODO [ignore]
+%TC:macro \parencite [ignore]
+%TC:macro \textcite [ignore]
+\section{Posibles aplicaciones}
+\limite{0}{Posibles aplicaciones: plantee posibles aplicaciones prácticas del tema
+trabajado, señalando su utilidad en contextos reales.}
+
+\begin{description}[leftmargin=1.4em]
+
+\item[Diseño de motores de ejecución agéntica.] La aplicación directa se da en OASys,
+pues la frontera medida en $(\lambda, c)$ decide si se implementa la aplicación en
+caliente de ediciones, con qué presupuesto se reemplaza el máximo de iteraciones fijado
+a mano y cuándo la gobernanza (presupuesto $B$ más líneas inmutables) supera a la
+supervisión humana por aprobación. La misma lógica aplica a orquestadores de agentes LLM
+genéricos, que hoy fijan por intuición cuándo replanificar.
+
+\item[Presupuestos de deliberación con LLM.] Representar al LLM como un oráculo de
+competencia $p$ y costo $c$ convierte una propiedad del modelo en un parámetro del
+experimento: Las curvas resultantes dicen, para cualquier calidad y precio del modelo, si
+la auto-edición de planes vale la pena. De esta forma un despliegue real calibra $p$ con
+unas pocas corridas y lee su decisión en la frontera ya construida.
+
+\item[Replanificación en robótica y control.] La pregunta de cuándo replanificar bajo
+dinamismo y observabilidad parcial es central en control predictivo de POMDPs
+\parencite{ma2018performance} y en la simplificación de lazo abierto con garantías
+formales \parencite{kong2026open}, por lo que los resultados de este proyecto ofrecen una
+versión medible y reproducible de ese compromiso que resulta útil como banco de pruebas
+docente.
+
+\item[Gobernanza de agentes que se modifican a sí mismos.] Un agente que reescribe su
+propio programa con líneas protegidas y presupuesto de ediciones es un caso mínimamente
+viable del problema general de alinear un agente automodificante: Qué parte de sí mismo
+no debería poder tocar y cuántas veces conviene dejarlo intentarlo. Que el problema no es
+hipotético lo documentaron los propios autores de The AI Scientist, cuyo agente editó su
+código para extenderse el límite de tiempo que lo acotaba y en otra corrida se relanzó a sí
+mismo \parencite{lu2024aiscientist}, de forma que la restricción escrita en el programa
+resultó ser justamente lo que el programa podía reescribir. El agente gobernado de este
+experimento mide qué tan costoso sale proteger esa frontera, pues el presupuesto $B$ y las
+acciones inmutables son la versión medible de la pregunta por cuánta autoridad se le delega
+a un agente sobre su propia especificación.
+
+\end{description}

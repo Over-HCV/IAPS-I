@@ -1,0 +1,57 @@
+% !TEX root = ../main-es.tex
+% Las cajas de ayuda no son contenido: texcount las ignora (ver `make wordcount`).
+%TC:macro \limite [ignore,ignore]
+%TC:macro \nota [ignore]
+%TC:macro \TODO [ignore]
+%TC:macro \parencite [ignore]
+%TC:macro \textcite [ignore]
+\section{Agentes}
+\limite{0}{Agentes: identifique los agentes que intervienen en su proyecto. Explique
+quiénes son y qué rol desempeña cada uno dentro de la dinámica del sistema.}
+
+La dinámica del sistema la sostienen tres actores: Un \textbf{agente recolector} (el protagonista) implementado en seis arquitecturas que cubren la taxonomía de \textcite{russellNorvig2020} cap.~2, un \textbf{oráculo de replanificación} que abstrae al sistema estocástico de IA y un \textbf{entorno hostil} (los recursos móviles) que hace que el plan caduque. Existe también un cuarto papel referente al \textbf{humano autorizador} de ediciones, el cual se modela dentro de la arquitectura gobernada con procesos de supervisión humana (Human-in-the-Loop, HiTL).
+
+\begin{table}[ht]
+\centering
+\footnotesize
+\begin{tabular}{@{}L{2.1cm} L{3.7cm} L{4.3cm} L{3.9cm}@{}}
+\toprule
+\textbf{Agente} & \textbf{Quién es} & \textbf{Rol en la dinámica} & \textbf{Análogo público} \\
+\midrule
+Reflejo simple & Se mueve con avidez hacia el recurso visible más cercano (sin plan ni memoria) & Línea base reactiva: Reevalúa en cada tick y nunca sufre un plan obsoleto (sacrifica previsión a cambio de oportunismo) & Robótica reactiva de subsunción \parencite{brooks1991intelligence} \\ \sepfilas
+Basado en modelo & Mantiene un mapa de creencias del mundo (reactivo y sin plan explícito) & Aísla el aporte de la memoria interna frente al reflejo puro & La taxonomía de referencia \parencite{russellNorvig2020} cap.~2 \\ \sepfilas
+Lazo abierto & Calcula una ruta A* una vez y la ejecuta sin feedback & Representa el flujo estático: Ignora las divergencias entre plan y mundo & Orquestadores deterministas de producción (DAGs tipo Airflow o n8n): El flujo no cambia aunque el mundo sí \\ \sepfilas
+Reinicio en frío & Al divergir, aborta la corrida y replanifica desde cero en la siguiente & Modela el comportamiento actual del sistema real (las ediciones solo se aplican en la corrida siguiente, por lo que el progreso en vuelo se pierde)
+%  de OASys hoy (ediciones aplicadas solo en la corrida siguiente; el progreso actual se pierde)
+& AFlow \parencite{zhang2024aflow} y ADAS \parencite{hu2024adas}: Optimizan el flujo como código pero fuera de línea \\ \sepfilas
+Lazo cerrado & Monitorea la ejecución y, al divergir, replanifica en sitio pagando $c$ ticks & Representa la reparación oportuna (a posteriori) del plan con costo explícito
+%  el \texttt{run=hot} no implementado: la reparación oportuna
+& Reflexion \parencite{shinn2023reflexion}, AWM \parencite{wang2024awm} y el \emph{chunking} de SOAR \parencite{laird2012soar} \\ \sepfilas
+Gobernado & Como el de lazo cerrado, pero con presupuesto de $B$ ediciones y
+% líneas inmutables \texttt{@lock} 
+acciones inmutables
+& Incorpora al humano autorizador como una restricción del sistema: Amortigua el \emph{thrashing} de reescrituras & The AI Scientist \parencite{lu2024aiscientist}: El agente editó el propio límite de tiempo que lo acotaba \\
+
+\addlinespace
+Oráculo & El replanificador abstracto con competencia $p$ y costo $c$ &
+Reemplaza al LLM real: Con probabilidad $p$ propone la reparación óptima (A* sobre el
+sufijo) y con $1-p$ una reparación plausible pero equivocada & Voyager \parencite{wang2023voyager} y DreamCoder \parencite{ellis2021dreamcoder}: Auto-verificación y reparación iterativa con $p<1$ \\
+\bottomrule
+\end{tabular}
+\caption{Agentes del sistema y su papel en la dinámica: Las seis primeras filas son
+arquitecturas del mismo agente recolector, mientras que el oráculo completa la dinámica
+junto al entorno y al humano autorizador descritos en el texto. La última columna ancla cada
+arquitectura en un sistema público verificable, de modo que ninguna de ellas descansa
+únicamente sobre el sistema propio.}
+\end{table}
+
+La comparación entre estas políticas \emph{es} el experimento: La diferencia de
+utilidad entre reinicio en frío y lazo cerrado cuantifica el costo de no haber
+implementado la aplicación en caliente, mientras que la diferencia entre lazo cerrado y gobernado
+mide el valor de acotar la propia replanificación. Cabe mencionar que la columna de análogos
+cumple una función metodológica y no decorativa, pues cada arquitectura queda así como la
+abstracción controlada de un sistema que ya existe en público, de forma que los resultados se
+leen como afirmaciones sobre la clase completa y no sobre un despliegue particular.
+
+% \nota{Si el avance pide ``los agentes'' en sentido estricto, la tabla de seis
+% arquitecturas puede resumirse a tres papeles: recolector, oráculo y entorno.}

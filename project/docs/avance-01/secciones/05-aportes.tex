@@ -1,0 +1,51 @@
+% !TEX root = ../main-es.tex
+% Las cajas de ayuda no son contenido: texcount las ignora (ver `make wordcount`).
+%TC:macro \limite [ignore,ignore]
+%TC:macro \nota [ignore]
+%TC:macro \TODO [ignore]
+%TC:macro \parencite [ignore]
+%TC:macro \textcite [ignore]
+\section{Aportes de las referencias principales}
+\limite{0}{Aportes de las referencias principales: seleccione dos referencias clave y
+describa en qué medida contribuyen a la construcción del proyecto (por ejemplo:
+fundamentos teóricos, antecedentes, metodologías, aplicaciones).}
+
+\subsection*{\textcite{russellNorvig2020}: Fundamentos teóricos}
+
+Es el texto de la asignatura y a la vez el andamiaje conceptual completo del proyecto,
+pues de él salen las tres piezas que lo estructuran. Primero, la taxonomía de agentes y
+entornos del capítulo 2 fija las seis arquitecturas comparadas así como la clasificación
+del entorno de tarea (parcialmente observable, estocástico, secuencial y dinámico).
+Luego, la búsqueda informada del capítulo 3 aporta el A* que el agente invoca en cada
+reescritura (contenido del curso usado como motor funcional y no solo como cita).
+Finalmente, la planeación en línea del capítulo 11 (monitoreo de acción, de plan y de
+objetivo) define qué significa detectar que un plan dejó de ser válido, que es
+precisamente el evento que dispara toda la dinámica de replanificación.
+
+\subsection*{\textcite{gao2026selfevolving}: La agenda del campo}
+
+Si R\&N aporta el andamiaje conceptual, el survey de agentes auto-evolutivos aporta la
+pertinencia y el interlocutor, pues es el trabajo que le pone nombre y agenda a la clase
+de sistemas que el proyecto estudia. Su contribución es doble. Primero, organiza el campo
+en cuatro preguntas (\emph{what}, \emph{when}, \emph{how} y \emph{where to evolve}), de
+forma que la pregunta de este proyecto no queda como una curiosidad de ingeniería sino
+como la dimensión \emph{when} de una agenda explícita, que el propio survey reconoce
+abierta. Luego, y esto es lo que define el aporte metodológico, taxonomiza los mecanismos
+de auto-modificación sin entregar criterio de decisión: Describe con qué se evoluciona y
+cómo, pero no bajo qué condiciones conviene hacerlo, por lo que la frontera medible en el
+plano $(\lambda, c)$ es precisamente la operacionalización que falta.
+
+De ese encuadre se desprenden además las instancias que sostienen el Cuadro~1, dado que el
+survey reúne en una sola clase sistemas que de otro modo se leerían como anécdotas
+inconexas (bibliotecas de habilidades programadas por el propio agente, búsqueda de flujos
+representados en código, reescritura de memoria tras el fracaso), lo cual permite defender
+que las seis arquitecturas comparadas son abstracciones controladas de sistemas reales y
+no construcciones ad hoc.
+
+Cabe anotar de dónde sale el vocabulario de costo con el que se formula la hipótesis, pues
+no lo aporta el survey sino la tradición de metarazonamiento y racionalidad acotada
+\parencite{zilberstein2011metareasoning}: Deliberar es una acción con costo que compite con
+actuar, de modo que el costo $c$ de edición y el precio $\kappa$ por tick de deliberación
+operacionalizan ese costo, el presupuesto $B$ del agente gobernado es una política de
+deliberación explícita y el \emph{thrashing} medido por las ediciones desperdiciadas es el
+modo de fallo clásico de una política mal calibrada.

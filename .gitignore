@@ -809,6 +809,8 @@ build/
 # A bare `data` rule above excludes the directory itself, and git will not
 # descend into an excluded directory - so re-include it before excluding its
 # contents, otherwise the .gitkeep exception can never match.
+**/.DS_Store
+
 !learn/app/data/
 learn/app/data/*
 !learn/app/data/.gitkeep

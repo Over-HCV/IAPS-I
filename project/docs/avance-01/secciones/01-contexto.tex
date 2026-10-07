@@ -1,0 +1,51 @@
+% !TEX root = ../main-es.tex
+% Las cajas de ayuda no son contenido: texcount las ignora (ver `make wordcount`).
+%TC:macro \limite [ignore,ignore]
+%TC:macro \nota [ignore]
+%TC:macro \TODO [ignore]
+%TC:macro \parencite [ignore]
+%TC:macro \textcite [ignore]
+\section{Contexto del proyecto}
+\limite{0}{Contexto del proyecto: describa brevemente la motivación del proyecto, el
+problema que busca abordar y su relevancia.}
+
+\subsection*{Motivación}
+
+Existe hoy una clase emergente de sistemas a la que la literatura ya le puso nombre, los \emph{agentes auto-evolutivos} \parencite{gao2026selfevolving}, en la que el agente modifica durante su propia ejecución los componentes que lo definen, ya sea el flujo de trabajo que sigue, la memoria que consulta o el programa mismo que lo está ejecutando, de forma que la auto-modificación dejó de ser una especulación teórica para volverse una propiedad de sistemas desplegados.
+
+Las instancias de esa clase son públicas y verificables por cualquiera: Voyager programa sus propias habilidades en Minecraft y las repara cuando su verificación falla \parencite{wang2023voyager}, Reflexion reescribe su memoria verbal tras cada fracaso \parencite{shinn2023reflexion} y AFlow busca automáticamente el flujo de trabajo que el agente ejecuta representándolo como código \parencite{zhang2024aflow}. El caso límite lo documentaron los propios autores de The AI Scientist, cuyo agente editó su código para extenderse el límite de tiempo que lo acotaba y en otra corrida se relanzó a sí mismo \parencite{lu2024aiscientist}, lo cual muestra que la capacidad de reescribirse alcanza ya a las restricciones puestas para contenerla.
+
+El problema es que esa capacidad se despliega sin criterio medido de cuándo ejercerla, pues los orquestadores actuales fijan por intuición cada cuánto conviene replanificar y la pregunta por el cuándo sigue abierta en la agenda de la propia clase, que la nombra explícitamente como la dimensión \emph{when} \parencite{gao2026selfevolving}.
+
+Este proyecto aborda esa pregunta desde una instancia de calibración concreta llamada \textbf{OASys}, un motor de ejecución agéntica en el que un agente basado en inteligencia artificial generativa (LLM/SOM) puede \emph{leer y reescribir el programa que lo está ejecutando} mediante las herramientas vinculadas al \texttt{filesystem}, cuya motivación de diseño es sostener tareas de horizonte largo: Procesos que ni un LLM suelto completa (por la degradación de contexto) ni un flujo determinista afronta (el entorno cambia mientras el flujo es estático), de forma que un agente que reescribe su propio flujo escapa, en principio, a ambas limitaciones. Vale la pena anotarlo con honestidad: OASys es un sistema propio y no publicado, de forma que aquí aporta los parámetros medibles de un despliegue real pero no evidencia, la cual recae por completo sobre el experimento reproducible que se describe más adelante.
+
+En esa instancia el vacío se vuelve verificable decisión por decisión, pues las tres centrales se resuelven por intuición: El modo de aplicación inmediata de ediciones (\texttt{run=hot}) está declarado pero no implementado, mientras que el número máximo de iteraciones de deliberación es una constante fijada a mano y el único freno contra reescrituras improductivas es la aprobación de un humano.
+
+\subsection*{Antecedentes}
+
+La pregunta no nació con los modelos de lenguaje. Primeramente, el programa de damas de Samuel ya ajustaba los pesos de su propia función de evaluación a partir de las partidas que jugaba \parencite{samuel1959some}, de modo que el sistema que evaluaba las jugadas era el mismo que se reescribía tras jugarlas, con el pequeño detalle de que allí la modificación era numérica y no simbólica; progresivamente la robótica reactiva sostuvo que un agente acoplado al mundo no necesita plan ni representación si sus lazos percepción-acción son suficientemente rápidos \parencite{brooks1991intelligence}, lo cual le da autor y manifiesto a la línea base de este experimento, mientras que las arquitecturas cognitivas mostraron el extremo opuesto del costo: El \emph{chunking} de SOAR compila experiencia en reglas nuevas que se insertan mientras el sistema corre \parencite{laird2012soar}, es decir edición en caliente con costo marginal casi nulo.
+
+La tradición de planificación aportó además las dos advertencias que este proyecto se propone medir. La primera es de complejidad: Reusar o reparar un plan es, en el caso general, computacionalmente tan duro como generarlo de nuevo \parencite{nebel1995plan}, por lo que la intuición de que reparar sale más barato que replanificar no viene gratis sino que hay que demostrarla. La segunda es la dicotomía con nombre propio entre replanificar desde cero y reparar el mínimo necesario, formulada junto con la estabilidad del plan como métrica \parencite{fox2006plan} y acompañada de algoritmos que replanifican de forma incremental en retículas donde el mundo cambia mientras el agente se mueve \parencite{koenig2002dlite} o que entregan una respuesta buena de inmediato y mejor si queda tiempo \parencite{likhachev2003ara}. El extremo superior del espectro lo fija la máquina de Gödel, que reescribe cualquier parte de su propio código únicamente cuando encuentra una prueba de que la reescritura mejora su utilidad \parencite{schmidhuber2003goedel}, lo cual corresponde a competencia perfecta con un costo de deliberación astronómico.
+
+Entre SOAR (costo casi nulo con competencia modesta) y la máquina de Gödel (competencia perfecta con costo enorme) viven todos los reparadores reales, por lo que lo que la era de los LLM añade no es la auto-modificación en sí sino la naturaleza del reparador: Donde la literatura clásica suponía un reparador exacto sobre un entorno determinista, aquí es un oráculo estocástico con competencia $p$, costo $c$ por edición y presupuesto $B$, que son precisamente los ejes que este proyecto barre.
+
+\subsection*{Problema}
+
+Al leer la taxonomía clásica de agentes con OASys en la cabeza \parencite{russellNorvig2020} resulta que el sistema completo ya está descrito en la literatura con otro vocabulario: El programa que ejecuta el agente es un plan jerárquico y leerlo es monitoreo de ejecución, mientras que reescribirlo es replanificación (o reparación de plan, según cuánto del plan anterior se conserve \parencite{fox2006plan}) y aplicar las ediciones en frío o en caliente corresponde a planeación de lazo abierto contra lazo cerrado.
+
+Si el problema es clásico, cabe la pregunta clásica: Replanificar cuesta (deliberar consume tiempo durante el cual el mundo sigue cambiando) y su beneficio crece con el dinamismo del entorno, por lo que un beneficio creciente contra un costo aproximadamente constante implica un punto de cruce. La pregunta del proyecto es:
+
+\begin{quote}
+  \proyPregunta
+\end{quote}
+
+El problema se modela como un sistema multiagente en MESA \parencite{kazil2020mesa}: Un
+agente recolector con seis arquitecturas (de reflejo simple a lazo cerrado con
+gobernanza) opera en una retícula con recursos móviles, donde el replanificador es
+un oráculo abstracto con competencia $p$ y costo $c$ por edición.
+
+\subsection*{Relevancia}
+
+Hacia la clase pública, la relevancia está en que una frontera medible es exactamente lo que la dimensión \emph{when} de la agenda de agentes auto-evolutivos declara pendiente \parencite{gao2026selfevolving}, de modo que el aporte no es describir un mecanismo más de auto-edición sino entregar el criterio para decidir cuándo ejercerlo. Hacia el sistema real, la frontera medida entre lazo abierto y replanificación es el argumento cuantitativo que falta para decidir si vale la pena su uso, con qué presupuesto de ediciones y con qué modelo de costo. Hacia la teoría agéntica, el proyecto usa el contenido del curso como pieza funcional: El planificador que el agente invoca en cada reescritura es A* y la comparación entre arquitecturas es exactamente la taxonomía de agentes y entornos vista en clase.
+
+Vale la pena anotarlo con honestidad: El barrido experimental ya se ejecutó y su lectura preliminar indica que la frontera depende de la observabilidad del agente bastante más de lo que esta propuesta anticipaba, por lo que el documento final reportará ese hallazgo con sus cifras en lugar de la frontera limpia que aquí se conjetura.
