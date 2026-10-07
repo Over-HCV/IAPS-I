@@ -1,0 +1,30 @@
+% Las cajas de ayuda no son contenido: texcount las ignora (ver `make wordcount`).
+%TC:macro \limite [ignore,ignore]
+%TC:macro \nota [ignore]
+%TC:macro \TODO [ignore]
+\thispagestyle{empty}
+\begin{center}
+  \includegraphics[width=3.2cm]{ur-logo}\\[1.2em]
+  {\Large\bfseries \docNombre}\\[0.4em]
+  {\large \proyCurso{} (\proyCodigo)}\\[0.2em]
+  {\normalsize \proyUniversidad}\\[2em]
+  {\large\bfseries \proyTitulo}\\[0.4em]
+  {\normalsize \itshape \proyPregunta}\\[2.5em]
+\end{center}
+
+\begin{center}
+\begin{tabular}{@{}>{\bfseries}r l@{}}
+Estudiante & \proyEstudiante \\
+Profesor   & \proyProfesor \\
+Fecha      & \proyFecha \\
+\end{tabular}
+\end{center}
+
+\vfill
+\ifdocFinal\else
+\begin{center}
+  \footnotesize Compilado con Xe\LaTeX{} — borrador visible: las cajas azules citan la
+  consigna y desaparecen con \texttt{make es FINAL=1}.
+\end{center}
+\fi
+\clearpage

@@ -1,0 +1,48 @@
+% common/macros.tex — dos macros de ayuda, compartidos por todos los documentos
+% del curso (avance, final).
+
+% ---------------------------------------------------------------------------
+% Modo FINAL: `make es FINAL=1` crea el archivo .final-mode y las cajas de ayuda
+% desaparecen. El flag lo busca ESTE archivo con \IfFileExists, así que es
+% relativo al directorio desde donde compila latexmk (la carpeta del documento).
+% ---------------------------------------------------------------------------
+\newif\ifdocFinal \docFinalfalse
+\IfFileExists{.final-mode}{\docFinaltrue}{}
+
+% ---------------------------------------------------------------------------
+% \limite{N}{qué pide la consigna aquí}
+%
+% Caja al inicio de cada sección con el presupuesto de palabras y el texto
+% literal de la consigna (intro.md en el avance, formulario oficial en el
+% final). Visible en borrador, invisible en FINAL.
+% N = 0 significa "sin límite declarado".
+% ---------------------------------------------------------------------------
+\newcommand{\limite}[2]{%
+  \ifdocFinal\else
+    \begin{tcolorbox}[
+      colback=blue!3, colframe=blue!35, boxrule=0.4pt,
+      left=6pt, right=6pt, top=4pt, bottom=4pt,
+      before skip=6pt, after skip=10pt]
+      \footnotesize
+      \ifnum#1>0\textbf{Máximo #1 palabras.}\quad\fi
+      #2
+    \end{tcolorbox}
+  \fi
+}
+
+% ---------------------------------------------------------------------------
+% \nota{...} — recordatorio interno de qué falta o de cómo se conecta con el
+% resto del proyecto. Invisible en FINAL.
+% ---------------------------------------------------------------------------
+\newcommand{\nota}[1]{%
+  \ifdocFinal\else
+    {\color{orange!70!black}\footnotesize\textsf{[nota: #1]}\par\medskip}
+  \fi
+}
+
+% ---------------------------------------------------------------------------
+% \TODO{...} — dato que todavía no se tiene. Nunca se inventa un dato: se
+% marca. En FINAL sigue VISIBLE y en rojo, a propósito: un documento no se
+% entrega con campos sin llenar, y el modo final tiene que gritarlo.
+% ---------------------------------------------------------------------------
+\newcommand{\TODO}[1]{{\color{red}\textbf{[POR DEFINIR: #1]}}}

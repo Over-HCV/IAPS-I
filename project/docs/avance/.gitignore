@@ -1,0 +1,17 @@
+# Flag de modo FINAL (lo crea `make es FINAL=1`)
+.final-mode
+
+# Polución en la raíz si alguien corre latexmk sin -outdir=build
+*.aux
+*.bbl
+*.bcf
+*.blg
+*.fdb_latexmk
+*.fls
+*.log
+*.out
+*.run.xml
+*.synctex.gz
+*.toc
+*.xdv
+*.pdf

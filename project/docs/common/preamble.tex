@@ -1,0 +1,89 @@
+% common/preamble.tex — paquetes compartidos por los documentos del curso.
+%
+% Deliberadamente ligero: el avance es un documento corto de quiz, no una
+% tesis. Se carga desde la carpeta de cada documento (avance/, final/), así que
+% TODAS las rutas de abajo son relativas al directorio del documento:
+%   common/   -> ../common/
+%   assets/   -> ../assets/pics/
+%   bib/      -> ../bib/refs.bib
+% ACOPLAMIENTO: si algo de eso se mueve, la compilación falla (o peor: compila
+% sin el logo). No hay script que lo detecte.
+
+% --- Matemáticas (antes de unicode-math, que si no avisa) ---
+\usepackage{mathtools}
+
+% --- Fuentes (XeLaTeX) ---
+% Libertinus. Se cargan por NOMBRE DE ARCHIVO + Extension, no por nombre de
+% familia: en TeXLive las .otf viven en el árbol de texmf y fontconfig no las
+% ve, así que \setmainfont{Libertinus Serif} falla.
+\usepackage[warnings-off={mathtools-colon,mathtools-overbracket},mathbf=sym]{unicode-math}
+\setmainfont{LibertinusSerif}[
+  Extension     = .otf,
+  UprightFont   = *-Regular,
+  ItalicFont    = *-Italic,
+  BoldFont      = *-Semibold,
+  BoldItalicFont= *-SemiboldItalic,
+  Ligatures     = TeX,
+]
+\setsansfont{LibertinusSans}[
+  Extension     = .otf,
+  UprightFont   = *-Regular,
+  ItalicFont    = *-Italic,
+  BoldFont      = *-Bold,
+  BoldItalicFont= *-Bold,
+  Ligatures     = TeX,
+]
+\setmathfont{LibertinusMath-Regular.otf}
+
+% --- Idioma ---
+% es-noshorthands: los shorthands < > ~ . de babel-spanish rompen cleveref y las
+% columnas d{..} de dcolumn.
+\usepackage[english,spanish,es-noshorthands]{babel}
+\selectlanguage{spanish}
+
+% --- Geometría y espaciado ---
+\usepackage[letterpaper,margin=2.5cm]{geometry}
+\usepackage{setspace}\onehalfspacing
+\usepackage{parskip}
+
+% --- Tablas (los documentos son tabla-pesados: consignas y métricas) ---
+\usepackage{booktabs}
+\usepackage{longtable}
+\usepackage{array}
+\usepackage{tabularx}
+\usepackage[section]{placeins} % las tablas no pueden flotar fuera de su sección
+\newcolumntype{L}[1]{>{\raggedright\arraybackslash}p{#1}}
+
+% --- Color, cajas y enlaces ---
+\usepackage{xcolor}
+\usepackage[most]{tcolorbox}
+\usepackage{enumitem}
+\usepackage[hidelinks]{hyperref}
+
+% --- Logo institucional: compartido por todos los documentos del curso ---
+\usepackage{graphicx}
+\graphicspath{{../assets/pics/}}
+
+% --- Comillas dependientes del idioma (biblatex lo exige junto con babel) ---
+\usepackage{csquotes}
+
+% --- Bibliografía: UN SOLO refs.bib para todos los entregables del curso ---
+\usepackage[backend=biber,style=authoryear,sorting=nyt,maxcitenames=2,
+            maxbibnames=99,giveninits=true,uniquename=init,doi=true,url=true,isbn=false]{biblatex}
+\addbibresource{../bib/refs.bib}
+
+\input{../common/macros}
+\input{../common/meta-es}
+
+% --- Encabezado de página: nombre del documento (define cada main-es.tex) ---
+\providecommand{\docNombre}{Documento}
+\usepackage{fancyhdr}
+\pagestyle{fancy}\fancyhf{}
+\fancyhead[L]{\footnotesize \docNombre{} — \proyCursoCorto}
+\fancyhead[R]{\footnotesize\thepage}
+\renewcommand{\headrulewidth}{0.4pt}
+
+% --- Títulos de sección numerados, al estilo de las consignas del curso ---
+\usepackage{titlesec}
+\titleformat{\section}{\normalfont\large\bfseries}{\thesection.}{0.5em}{}
+\titlespacing*{\section}{0pt}{1.5\baselineskip}{0.5\baselineskip}

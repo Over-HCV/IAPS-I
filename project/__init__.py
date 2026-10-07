@@ -1,32 +1,10 @@
-from mesa.examples.advanced.alliance_formation.model import MultiLevelAllianceModel
-from mesa.examples.advanced.epstein_civil_violence.model import EpsteinCivilViolence
-from mesa.examples.advanced.pd_grid.model import PdGrid
-from mesa.examples.advanced.sugarscape_g1mt.model import SugarscapeG1mt
-from mesa.examples.advanced.wolf_sheep.model import WolfSheep
-from mesa.examples.basic.boid_flockers.model import BoidFlockers
-from mesa.examples.basic.boltzmann_wealth_model.model import BoltzmannWealth
-from mesa.examples.basic.conways_game_of_life.model import ConwaysGameOfLife
-from mesa.examples.basic.schelling.model import Schelling
-from mesa.examples.basic.virus_on_network.model import VirusOnNetwork
+"""Planes auto-editables: lazo abierto vs. replanificación.
 
-# El tram_model vive en mesa.examples.experimental, que solo existe en Mesa 4.x. El
-# entorno usa Mesa 3.5.1, donde mesa.examples solo trae `basic` y `advanced`, así que el
-# import se hace tolerante en vez de romper todo el paquete.
-try:
-    from mesa.examples.experimental.tram_model.model import TransitSystem
-except ModuleNotFoundError:  # pragma: no cover - depende de la versión de Mesa
-    TransitSystem = None  # type: ignore[assignment,misc]
+Proyecto final de Inteligencia Artificial (32310004), Universidad del Rosario.
+Ver ``README.md`` y ``docs/`` para el racional, el mapeo conceptual y el diseño formal.
 
-__all__ = [
-    "BoidFlockers",
-    "BoltzmannWealth",
-    "ConwaysGameOfLife",
-    "EpsteinCivilViolence",
-    "MultiLevelAllianceModel",
-    "PdGrid",
-    "Schelling",
-    "SugarscapeG1mt",
-    "TransitSystem",
-    "VirusOnNetwork",
-    "WolfSheep",
-]
+Nota de importación: este paquete NO cuelga de ``project/__init__.py``, que está roto en
+la copia vendorizada de los ejemplos de Mesa (importa ``mesa.examples.experimental``,
+inexistente en Mesa 3.5.1). Se usa con ``project/`` en ``sys.path``, de modo que
+``oasys_abm`` es un paquete de primer nivel.
+"""

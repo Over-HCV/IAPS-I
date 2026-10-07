@@ -1,0 +1,7 @@
+# El curso no fija límites de extensión: todo en 0 = sin límite.
+# El target sigue sirviendo como conteo informativo por sección.
+01-contexto.tex:0
+02-agentes.tex:0
+03-variables.tex:0
+05-aportes.tex:0
+06-aplicaciones.tex:0
