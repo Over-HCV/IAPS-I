@@ -38,6 +38,28 @@ agéntica, su nombre en la teoría de planificación y la pieza de código que l
 | 13 | **Composición de agentes:** un agente completo usado como herramienta opaca de otro | **Descomposición de tareas / subplan opaco.** El plan de nivel superior no ve el interior del subplan — §11.4 | Extensión de fase 2: `mesa.experimental.meta_agents` |
 | 14 | **Ramas paralelas** sobre copias aisladas del estado | **Planes con ramas paralelas** sobre estados independientes | Fuera de alcance en esta versión |
 
+### 1.1 Conceptos que entraron después del Avance 2
+
+Las extensiones de [`../docs/roadmap-c4b.md`](../docs/roadmap-c4b.md) y
+[`../docs/roadmap-c5.md`](../docs/roadmap-c5.md) llevaron al modelo los conceptos de las
+sesiones de agentes basados en conocimiento (C4B) y de inferencia probabilística (C5), de
+forma que la tabla gana filas cuya primera columna ya no es un mecanismo de un motor agéntico
+sino la pregunta que el agente se hace sobre su propia creencia antes de reparar.
+
+| # | Concepto (pregunta del agente) | Russell & Norvig / teoría | Implementación en este modelo (MESA / código) |
+|---|---|---|---|
+| 15 | **Base de conocimiento:** lo que el agente sabe, separado de cómo lo calcula | **Agente basado en conocimiento,** nivel de conocimiento frente a nivel de implementación (Newell, 1982) — §7.1 | `conocimiento.py`: `BaseConocimiento`, que usa `KNOWLEDGE_BASED`; `logica.py`: `KnowledgeBase`, contra la que se prueba la primera |
+| 16 | **Contar lo visto y preguntar** | **`TELL` / `ASK`** — §7.1 | `BaseConocimiento.percibir` (TELL de lo visto en cada tick) y las tres consultas: `posible`, `clave` y `plan_valido`; `KnowledgeBase.tell`, `ask` y `ask_status` (verdadero, falso o desconocido) |
+| 17 | **Hechos con fecha:** dónde estaba un recurso *entonces* | **Fluentes y axiomas de estado sucesor** — §7.7.1 | `Visto(r,c,t)`, `¬En(r,c,t)` y `Recogido(r,t)`, y el axioma de deriva $En(r,c,t) \Rightarrow \bigvee_{c' \in N^+(c)} En(r,c',t+1)$ (docstring de `conocimiento.py`) |
+| 18 | **Lo que se observó no se desdice** | **Monotonía** de la implicación lógica — §7.5 | Ninguna observación se retira; lo que caduca es la conclusión «está ahí ahora», que se deriva. Es la respuesta a la Tarea 4 de C4B: con recursos que se mueven la monotonía no se rompe, se indexa por tiempo |
+| 19 | **Decidir si algo se sigue de lo que sé** | **Enumeración de modelos, CNF y DPLL** — §7.4–§7.6 | `logica.py`: `tt_entails`, `to_clauses`, `dpll` y `exactly`; la prueba cruzada de `tests/test_conocimiento.py` codifica una retícula de 4×4 y exige `falso` fuera de la región y `desconocido` dentro |
+| 20 | **Dónde puede estar un recurso que no veo** | **Estimación de estado lógica / estado de creencia** — §4.4 y §7.7.3 | `RegionPosible` (`conocimiento.py`): se fija al ver, se expande por cada deriva (`expandir`, distancia geodésica) y se poda con lo visto; el agente elige objetivo por el peor caso sobre ella |
+| 21 | **Aprender cuánto cambia el mundo** | **Aprendizaje bayesiano de parámetros,** prior conjugado Beta para una tasa de Bernoulli — §20.2 | `BetaBernoulli` (`filtro.py`): cada recurso cuya celda previa sigue a la vista es un ensayo; reporter `lambda_estimado` |
+| 22 | **Dónde *probablemente* está un recurso que no veo** | **Filtrado *forward*** (predicción con el modelo de transición, corrección con la observación) — §14.2 | `FiltroRecurso` y `MallaFiltro` (`filtro.py`), cuyo soporte es exactamente la región de la fila 20, lo cual se prueba tick a tick |
+| 23 | **Reparar o mantener sin un umbral elegido a mano** | **Principio de utilidad esperada máxima** — §16.1 | `CreenciaBayesiana.plan_valido`: se repara si y solo si $c < (1-q)(c+k)$; el objetivo se elige por costo esperado $d/q$ |
+| 24 | **Inferir los parámetros de un despliegue a partir de su telemetría** | **Computación bayesiana aproximada (ABC) por rechazo** (Beaumont et al., 2002; C5 §12), sin contraparte directa en R&N | `calibracion.py`: tabla de referencia en `results/abc.parquet`, `abc_rechazo` y `recomendar`, que lee la política sugerida en la frontera bajo la posterior de (λ, p) |
+| 25 | **Qué parámetro vale la pena medir** | **Análisis de sensibilidad** por descomposición de la varianza (η²; C5 §13), sin contraparte directa en R&N | `sensibilidad.py`: η² de un factor y η² parcial sobre los CSV guardados, por política y para la diferencia `OPEN_LOOP − CLOSED_LOOP` |
+
 ---
 
 ## 2. Las tres asimetrías
@@ -93,7 +115,11 @@ que la competencia `p` pesa más sobre el lazo abierto (que replanifica poco) qu
 lazo cerrado, que la observabilidad sube el nivel de todas las políticas sin decidir por sí
 sola a favor de reparar en caliente, y que la variable decisiva terminó siendo el costo de
 deliberar `c`, que con un entorno rápido hace preferible no planificar en absoluto (ver el
-cuaderno, §4, §6 y §7).
+cuaderno, §4, §6 y §7). Cabe mencionar que la calibración ABC (fila 24) vuelve operable el
+otro lado de la asimetría, pues estima λ a partir de la telemetría de un despliegue con
+precisión moderada, aunque no identifica `p`: con un motor que solo replanifica al fallar,
+los errores del replanificador se confunden con el dinamismo, de forma que medir la
+competencia exige telemetría que hoy no se registra.
 
 ---
 
@@ -105,5 +131,7 @@ cuaderno, §4, §6 y §7).
   ejecutable, de forma que nada queda solo en la prosa.
 - **Discusión:** Las secciones 2.1–2.3 son el aporte conceptual, es decir, qué le presta
   cada tradición a la otra.
+- **Extensiones:** Las filas 15–25 conectan el modelo con las sesiones de lógica e
+  inferencia probabilística, y cada una tiene una prueba o un barrido que la respalda.
 - **Trabajo futuro:** Las filas 13–14 son la extensión de meta-agentes y de planes con
   ramas paralelas.

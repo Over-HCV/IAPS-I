@@ -127,6 +127,12 @@ Dicho de otro modo: Wumpus es un excelente banco de pruebas para *representació
 conocimiento*, y un mal banco de pruebas para *economía de la deliberación*. Es buen tema
 para otro trabajo, no para este.
 
+Vale la pena anotar que lo que se descartó fue el **dominio** y no la representación, pues
+tras el Avance 2 la base de conocimiento lógica entró al modelo como una política más
+(`KNOWLEDGE_BASED`, [`../docs/roadmap-c4b.md`](../docs/roadmap-c4b.md)), sobre la misma
+retícula de horizonte largo, de forma que la pregunta pasó a ser si saber qué se sabe
+abarata la deliberación, que sí es una pregunta de este trabajo.
+
 ### 3.3 Dominio: formación de coaliciones / meta-agentes — **descartado como eje, retenido como extensión**
 
 MESA trae `mesa.experimental.meta_agents`: agentes que se componen en agentes de nivel
@@ -277,3 +283,122 @@ con las cifras del barrido corregido:
 - **Hipótesis (5):** Se confirma, y es la que mejor sobrevive a la corrección, dado que
   reparar en caliente supera al reinicio en frío desde λ=0.1 (de +16 a +22 puntos con `c`
   entre 2 y 5), aunque con una dependencia en `c` que no resultó monótona.
+
+---
+
+## 6. Hipótesis de las extensiones
+
+Tras el Avance 2 el modelo creció en tres frentes, cada uno con sus hipótesis escritas en su
+documento de trabajo antes de correr el barrido correspondiente
+([`../docs/roadmap-c4.md`](../docs/roadmap-c4.md),
+[`../docs/roadmap-c4b.md`](../docs/roadmap-c4b.md) y
+[`../docs/roadmap-c5.md`](../docs/roadmap-c5.md)). Se resumen aquí con la misma disciplina que
+§5: primero lo que se escribió, después el contraste, y todas las cifras son de utilidad neta
+media con 30 semillas, `c=5`, `p=0.9` y `r=3` salvo que se diga, con diferencias pareadas por
+semilla (± error estándar).
+
+### Escritas antes de correr
+
+1. **Orden de activación:** Sortear en cada tick si el agente actúa antes o después de la
+   deriva no cambia la conclusión cualitativa sobre reparar en caliente frente a reiniciar en
+   frío (el signo de la diferencia se conserva).
+2. **Escasez:** Con recursos escasos los viajes entre recogidas son más largos y el objetivo
+   pasa más tiempo expuesto a la deriva, por lo que la reparación debería valer **más** con
+   escasez; si sale lo contrario, la explicación tendrá que ver con el costo de oportunidad de
+   deliberar cuando sobran objetivos.
+3. **Agente basado en conocimiento (KB-2):**
+   - **H1:** Con λ>0, `KNOWLEDGE_BASED` (horizonte `"llegada"`) supera a `CLOSED_LOOP`.
+   - **H1b:** Alcanza en cada λ a la mejor de `OPEN_LOOP` y `MODEL_BASED`, con la expectativa,
+     escrita también de antemano, de que falle a λ=0.5.
+   - **H2 (control exacto):** Con visión total y horizonte `"ahora"` es idéntico a
+     `CLOSED_LOOP` semilla a semilla.
+   - **H3:** Cobrar cada consulta en ticks (`ticks_por_ask > 0`) encoge la ventaja de H1 hasta
+     invertirla, con una frontera análoga a la de `c`.
+   - **H4 (mecanismo):** El horizonte `"llegada"` cambia reparaciones proactivas por
+     replanificaciones forzadas por un fallo y reduce el tiempo deliberando, sin que la
+     ganancia neta esté garantizada, porque ambas cuestan `c`.
+4. **Agente bayesiano (C5-B):**
+   - **HB1:** Con λ>0 y radio finito, `BAYESIAN` supera a `KNOWLEDGE_BASED`, porque el peor
+     caso trata igual objetivos casi seguros y casi perdidos.
+   - **HB2 (control exacto):** Con visión total y `"ahora"` es idéntico a `CLOSED_LOOP`.
+   - **HB3:** El error $|\hat\lambda-\lambda|$ es pequeño y crece cuando hay pocos ensayos
+     (`r=1`).
+   - **HB4:** A λ=0.5 sigue por debajo de `MODEL_BASED`.
+   - **HB5:** El filtro está calibrado: las celdas a las que asigna probabilidad $\approx x$
+     contienen al recurso con frecuencia $\approx x$.
+5. **Sensibilidad (C5-S):** λ domina la varianza de toda política con plan; `c` explica más
+   que `p` en la diferencia `OPEN_LOOP − CLOSED_LOOP`; y `r` mueve mucho el nivel de cada
+   política pero poco su diferencia.
+6. **Calibración ABC (C5-A):** A partir de la telemetría de un despliegue en frío, λ se
+   recupera con precisión, mientras que `p` sale mucho más ancha, porque con `OPEN_LOOP` el
+   oráculo solo se consulta tras un fallo y sus errores se confunden con el dinamismo.
+
+### Contraste con los resultados
+
+- **Orden de activación:** Se confirma. Con el orden sorteado, la diferencia entre reparar en
+  caliente y en frío conserva el signo en cinco de seis celdas (la excepción es λ=0.5 con
+  `c=5`, donde las dos políticas colapsan), y la ventaja de no planificar con λ alto también,
+  mientras que la diferencia entre lazo abierto y cerrado cambia de signo en tres de seis, lo
+  cual es consistente con que casi empaten y refuerza que no tiene un signo estable.
+- **Dinámica (sin hipótesis previa de signo):** Las políticas se separan por **ritmo** y no por
+  un evento, pues sus entregas acumuladas crecen con pendientes casi constantes desde el tick
+  50, y con λ≥0.25 `MODEL_BASED` va delante desde el principio; la ventaja de reparar en
+  caliente sobre el frío a λ=0.1 se abre hacia el tick 130, cuando ya hay trabajo en vuelo
+  que perder.
+- **Escasez:** **Se refuta en los dos regímenes.** Donde replanificar gana (`c=0`, `p=1`,
+  `r=∞`), la ventaja del lazo cerrado sobre el abierto crece con la abundancia (a λ=0.5, de
+  +36.7 ± 4.0 con dos recursos a +62.0 ± 5.0 con dieciséis), y en el régimen mixto el lazo
+  cerrado no saca ventaja consistente con λ≤0.25 y pierde más con más recursos a λ=0.5. Lo que
+  sí crece con la abundancia es la ventaja de no planificar (a λ=0.5, `MODEL_BASED` −
+  `OPEN_LOOP` pasa de +13.0 ± 3.1 a +96.0 ± 13.0), que es justamente la explicación por costo de
+  oportunidad que se dejó escrita como alternativa.
+- **H1:** Se cumple en el signo en todas las celdas, pero solo es significativa con `r=3` y
+  λ=0.5 (+21.3 ± 3.8), y desaparece en la ablación `"ahora"`, por lo que la ganancia viene del
+  horizonte `"llegada"` (no reparar ante derivas de las que el recurso todavía puede volver) y
+  no de la elección de objetivo por peor caso. Con visión total y λ=0.5, en cambio, el
+  horizonte lógico no basta para cortar el thrashing (5.0 contra 34.0 del lazo abierto).
+- **H1b:** Se cumple a λ=0.1 (+5.3 ± 4.7 sobre `OPEN_LOOP`) y falla a 0.25 (−24.7 ± 9.8) y a
+  0.5 (−67 ± 10.5 frente a `MODEL_BASED`), como se había anticipado.
+- **H2 y HB2:** Pasan exactos, semilla a semilla, y son lo que permite atribuir cualquier
+  diferencia de los barridos al criterio de reparación y no a un error de implementación.
+- **H3:** Se confirma con fuerza, pues la ventaja se invierte ya con un tick por consulta
+  (−5.3 ± 5.5, −17.3 ± 5.6 y −2.3 ± 2.0 frente a `CLOSED_LOOP` a λ=0.1, 0.25 y 0.5) y llega a
+  −32 y −37 puntos con cinco ticks a λ=0.1 y 0.25 (a λ=0.5 el lazo cerrado ya está tan abajo
+  que la caída no pasa de −4.7), de forma que **saber más solo compensa si preguntar es casi
+  gratis**.
+- **H4:** Se confirma. `KNOWLEDGE_BASED` hace más replanificaciones por fallo (7.3, 9.3 y 6.6
+  contra 1.6, 1.6 y 1.1 del lazo cerrado a λ=0.1, 0.25 y 0.5) y menos proactivas (2.8, 6.5 y 9.5
+  contra 7.7, 9.7 y 13.7), y a λ=0.5 delibera 63 ± 13.6 ticks menos, aunque a λ≤0.25 el ahorro
+  de tiempo deliberando no es significativo.
+- **HB1:** **Se rechaza.** Con `r=3` y λ=0.5, `BAYESIAN` queda por debajo de `KNOWLEDGE_BASED`
+  (−16 ± 4.3), y la causa es la propia regla de reparación, que repara de más: a λ=0.5 hace 16.3
+  reparaciones proactivas contra 9.5 de `KNOWLEDGE_BASED` y desperdicia 145.8 ediciones contra
+  97.4, porque trata cada reparación como si costara `c` y comprara certeza, cuando el plan
+  reparado nace desactualizado y una divergencia nueva puede interrumpirlo. La lógica gana
+  justamente por ser más tacaña (solo repara cuando el recurso ya no puede estar ahí). Con la
+  regla `"ahora"` (barrido `conocimiento_ahora`), `BAYESIAN` sube de 84.3 a 93.7 a λ=0.1, por
+  encima de `KNOWLEDGE_BASED` con `"llegada"` (91.3) pero dentro del ruido, y baja de 15.3 a 9.3
+  a λ=0.5, lo cual sitúa el problema en el criterio de reparar y no en el filtro.
+- **HB3:** Se confirma: la mediana de $|\hat\lambda-\lambda|$ es 0.083 con `r=1`, 0.020 con
+  `r=3` y 0.003 con visión total.
+- **HB4:** Se confirma (−83 ± 10.3 frente a `MODEL_BASED` a λ=0.5).
+- **HB5:** Se confirma, pues el diagrama de fiabilidad del filtro queda sobre la diagonal
+  (`results/figuras/07-fiabilidad-filtro.png`).
+- **Sensibilidad:** La primera hipótesis se cumple salvo en `OPEN_LOOP` dentro del barrido
+  principal, donde pesa más `c` (η² 0.14 contra 0.12 de λ); la segunda **no** se cumple, ya que
+  en la diferencia `OPEN_LOOP − CLOSED_LOOP` todos los η² quedan por debajo de 0.1 y ni `c` ni
+  `p` explican casi nada (el ruido entre semillas y mapas domina); y la tercera se cumple a
+  medias, porque `r` explica buena parte del nivel del lazo abierto (0.25) pero poco el del
+  reinicio en frío (0.05), y en la diferencia llega a 0.079.
+- **Calibración ABC:** Se cumple a medias. λ se recupera siempre dentro del intervalo creíble
+  del 90 %, aunque con precisión moderada (por ejemplo [0.15, 0.40] con mediana 0.25 para
+  λ*=0.25), y `p` no es identificable con esta telemetría, pues su posterior queda casi igual
+  al prior. Aun así la recomendación bajo la posterior es nítida en los extremos (lazo cerrado
+  en el 81 % de la posterior con λ*=0.1; `MODEL_BASED` en el 100 % con λ*=0.5), y con λ>0.5
+  extrapola, porque los barridos llegan a 0.5.
+
+Cabe mencionar, como lectura de conjunto, que las dos arquitecturas nuevas dejan dos
+resultados negativos honestos: saber qué se sabe solo paga cuando preguntar es gratis, y
+saber cuánto se sabe no paga si la regla de decisión omite un costo del mundo, por lo que en
+ninguna de las dos el aporte cambia la conclusión central de que, con dinamismo alto y
+deliberación cara, conviene no planificar.

@@ -1,0 +1,169 @@
+% !TEX root = ../main-es.tex
+%TC:macro \limite [ignore,ignore]
+%TC:macro \nota [ignore]
+%TC:macro \TODO [ignore]
+%TC:macro \parencite [ignore]
+%TC:macro \textcite [ignore]
+\section{Diseño experimental}\label{sec:diseno}
+
+\subsection{Parámetros}
+
+El cuadro~\ref{tab:parametros} recoge los parámetros del experimento. El plano $(\lambda, c)$ es donde se busca la frontera, mientras que $p$, $r$, $B$ y el número de recursos la desplazan, y los parámetros nuevos de las extensiones (el orden de activación, el horizonte de validez y el costo por consulta) sirven para poner a prueba la robustez de las conclusiones y el mecanismo de los agentes que infieren.
+
+\begin{table}[htbp]
+\centering
+\footnotesize
+\begin{tabular}{@{}l l L{3.6cm} L{6.6cm}@{}}
+\toprule
+\textbf{Símbolo} & \textbf{En el código} & \textbf{Valores} & \textbf{Significado} \\
+\midrule
+$\lambda$ & \texttt{lambda\_dinamismo} & 0, 0.05, 0.1, 0.25, 0.5 & Probabilidad por tick de que un recurso se mueva \\ \sepfilas
+$c$ & \texttt{costo\_edicion} & 0, 2, 5, 10 & Ticks que consume una deliberación \\ \sepfilas
+$p$ & \texttt{competencia} & 0.5, 0.7, 0.9, 1.0 & Probabilidad de que la reparación del oráculo sea la óptima \\ \sepfilas
+$r$ & \texttt{radio} & 1, 3, $\infty$ & Radio de visión (observabilidad parcial) \\ \sepfilas
+$B$ & \texttt{presupuesto} & $\infty$; 0, 3, 5, 10, 25 & Reparaciones proactivas permitidas (solo \GOV) \\ \sepfilas
+$K$ & \texttt{n\_resources} & 8; 2, 4, 8, 16 & Recursos simultáneos \\ \sepfilas
+— & \texttt{orden\_aleatorio} & no; sí & Sortear cada tick si el agente actúa antes o después de la deriva \\ \sepfilas
+— & \texttt{horizonte\_validez} & \llegada; \ahora & Cuándo debe seguir siendo posible el plan para no repararlo (\KB{} y \BY) \\ \sepfilas
+— & \texttt{ticks\_por\_ask} & 0; 1, 2, 5 & Ticks que cuesta cada consulta ante una divergencia (\KB{} y \BY) \\ \sepfilas
+$\kappa$ & \texttt{kappa} & 0 & Precio por tick de deliberación \\ \sepfilas
+\multicolumn{2}{@{}l}{Fijos} & \multicolumn{2}{L{10.2cm}@{}}{Retícula $15\times15$, 15\,\% de obstáculos, capacidad 3, $\varepsilon=0.15$ para las políticas reactivas, $T_{\mathrm{max}}=400$} \\
+\bottomrule
+\end{tabular}
+\caption{Parámetros del experimento. Tras el punto y coma, los valores que solo se usan en barridos específicos; por defecto $p=0.9$, $r=3$ y $c=5$ salvo que el barrido los varíe.}
+\label{tab:parametros}
+\end{table}
+
+\subsection{Barridos}
+
+El experimento se ejecutó en trece barridos, cada uno guardado en su propio archivo de resultados, que entre todos suman 16.260 corridas (cuadro~\ref{tab:barridos}). Los siete primeros son los originales y quedaron congelados a las seis políticas originales, cuyas listas se fijan a mano en el código y no se derivan del conjunto de políticas, para que añadir una política no cambie en silencio la definición de un barrido ya guardado; los seis siguientes salen de las extensiones posteriores al Avance~2. Aparte de los barridos, se guardaron las series temporales decimadas cada cinco ticks de 600 corridas (48.600 filas) y la tabla de referencia de la calibración por ABC, con 3.000 muestras de $(\lambda, p)$ tomadas de una previa uniforme y simuladas con dos semillas propias cada una.
+
+\begin{table}[htbp]
+\centering
+\footnotesize
+\begin{tabular}{@{}l L{6.6cm} L{3.4cm} r@{}}
+\toprule
+\textbf{Barrido} & \textbf{Qué varía} & \textbf{Fijo} & \textbf{Corridas} \\
+\midrule
+\texttt{principal} & 6 políticas originales × $\lambda$ × $c$ & $p=0.9$, $r=3$ & 3.600 \\ \sepfilas
+\texttt{competencia} & 4 políticas con plan × $\lambda$ × $p$ & $c=5$, $r=3$ & 1.920 \\ \sepfilas
+\texttt{observabilidad} & 4 políticas con plan × $\lambda$ × $r$ & $p=0.9$, $c=5$ & 1.440 \\ \sepfilas
+\texttt{gobernanza} & \CL{} y \GOV{} × $\lambda$ × $B$ & $p=0.9$, $c=5$, $r=3$ & 900 \\ \sepfilas
+\texttt{control2} & \OL{} y \CL{} × $\lambda$ (control 2) & $c=0$, $p=1$, $r=\infty$ & 300 \\ \sepfilas
+\texttt{control3} & \OL{} y \CL{} × $\lambda \in \{0, 0.05\}$ (control 3) & $p=0.5$, $c=10$ & 120 \\ \sepfilas
+\texttt{control4} & \OL{} y \GOV{} con $B=0$ (control 6) & — & 360 \\ \sepfilas
+\texttt{orden} & \MB, \OL, \CR, \CL{} × $\lambda \in \{0.1, 0.25, 0.5\}$ × $c \in \{2,5\}$, orden sorteado & $p=0.9$, $r=3$ & 720 \\ \sepfilas
+\texttt{conocimiento} & \MB, \OL, \CL, \KB, \BY{} × $\lambda$ × $r$, horizonte \llegada & $p=0.9$, $c=5$ & 1.800 \\ \sepfilas
+\texttt{conocimiento\_ahora} & \KB{} y \BY{} × $\lambda$ × $r$, horizonte \ahora{} (ablación y controles H2/HB2) & $p=0.9$, $c=5$ & 720 \\ \sepfilas
+\texttt{conocimiento\_costo} & \KB{} y \BY{} × $\lambda \in \{0.1, 0.25, 0.5\}$ × \texttt{ticks\_por\_ask} & $p=0.9$, $c=5$, $r=3$ & 540 \\ \sepfilas
+\texttt{escasez} & \MB, \OL, \CR, \CL, \KB{} × $K$ × $\lambda$ (régimen mixto) & $p=0.9$, $c=5$, $r=3$ & 2.400 \\ \sepfilas
+\texttt{escasez\_inf} & \OL, \CR, \CL{} × $K$ × $\lambda$ (donde replanificar gana) & $c=0$, $p=1$, $r=\infty$ & 1.440 \\
+\midrule
+\multicolumn{3}{@{}l}{\textbf{Total}} & \textbf{16.260} \\
+\midrule
+\texttt{dinamica} & \RX, \MB, \OL, \CR, \CL{} × $\lambda \in \{0,0.1,0.25,0.5\}$, serie cada 5 ticks & $p=0.9$, $c=5$, $r=3$ & 600 \\ \sepfilas
+\texttt{abc} & 3.000 pares $(\lambda,p)$ de la previa $\lambda\in[0,0.8]$, $p\in[0.5,1]$, con \OL, dos semillas cada uno & $c=5$, $r=3$ & 3.000\,×\,2 \\
+\bottomrule
+\end{tabular}
+\caption{Los trece barridos y las dos tablas auxiliares. Salvo indicación, $\lambda$ recorre $\{0, 0.1, 0.25, 0.5\}$ en los barridos nuevos y $\{0, 0.05, 0.1, 0.25, 0.5\}$ en \texttt{principal}; $K$ recorre $\{2,4,8,16\}$. Todas las corridas tienen 30 réplicas por combinación y $T_{\mathrm{max}}=400$.}
+\label{tab:barridos}
+\end{table}
+
+\subsection{Réplicas y comparación pareada}
+
+Cada combinación de parámetros se corre con 30 réplicas, con las semillas 0 a 29 pasadas por el argumento \texttt{rng} de \texttt{batch\_run}. Como la semilla fija el mundo (el mapa de obstáculos y la posición inicial de los recursos), dos políticas que corren con la misma semilla enfrentan el mismo mundo, de forma que todas las comparaciones entre políticas se hacen por pares de semilla: La diferencia de utilidad se calcula semilla a semilla y se reporta su media con el error estándar de esa diferencia (en adelante, «$\pm$ EE»), con lo cual la varianza entre mundos, que es la mayor parte de la varianza total (§\ref{sec:res-sensibilidad}), se cancela. Como criterio de lectura, una diferencia se considera fuera del ruido cuando supera dos errores estándar, lo cual no es una prueba formal con corrección por comparaciones múltiples sino una regla de prudencia que se aplica de forma uniforme. Cabe mencionar una excepción: Con el orden de activación sorteado la secuencia de eventos de cada semilla cambia y las corridas dejan de ser pares exactos de las de \texttt{principal}, por lo que en ese barrido se compara el signo de las diferencias y no su valor.
+
+\subsection{Métricas}
+
+Todas las métricas se recogen con el \texttt{DataCollector} de MESA al final de cada corrida (cuadro~\ref{tab:metricas}). La utilidad neta ordena las políticas y el resto explica por qué, de modo que cada resultado de la sección~\ref{sec:resultados} se acompaña, cuando hace falta, de la métrica que expone su mecanismo.
+
+\begin{table}[htbp]
+\centering
+\footnotesize
+\begin{tabular}{@{}l L{10.6cm}@{}}
+\toprule
+\textbf{Métrica} & \textbf{Definición} \\
+\midrule
+\texttt{utilidad\_neta} & $10\cdot\text{entregas} - \kappa\cdot\text{pasos\_deliberando}$, con $\kappa=0$ \\ \sepfilas
+\texttt{entregas} & Recursos depositados en la base \\ \sepfilas
+\texttt{pasos\_deliberando} & Ticks dentro de una deliberación, completada o interrumpida, la dispare un fallo o una divergencia \\ \sepfilas
+\texttt{n\_ediciones} & Deliberaciones completadas que instalan un plan reparado, incluidas las forzadas por un fallo \\ \sepfilas
+\texttt{n\_ediciones\_por\_fallo} & Subconjunto disparado por un fallo del plan (las únicas que hace \OL); las restantes son las \emph{proactivas} \\ \sepfilas
+\texttt{n\_ediciones\_desperdiciadas} & Ediciones seguidas de otra petición de reparación antes de ejecutar dos líneas, más deliberaciones interrumpidas, más ediciones rechazadas: La medida operacional del \emph{thrashing} \\ \sepfilas
+\texttt{carga\_perdida} & Recursos soltados por un reinicio en frío: El trabajo en curso que la reparación en caliente conserva \\ \sepfilas
+\texttt{tareas\_fallidas} & Líneas del plan que no pudieron ejecutarse (un \texttt{PICK} sin recurso o un \texttt{DELIVER} sin carga) \\ \sepfilas
+\texttt{divergencias\_reales} & Veces que el plan dejó de ser válido en el mundo \\ \sepfilas
+\texttt{divergencias\_detectadas} & Subconjunto que el agente percibió, emparejado con las reales para que no pueda superarlas \\ \sepfilas
+\texttt{ceguera} & $1 - \text{detectadas}/\text{reales}$: Fracción de divergencias nunca notadas \\ \sepfilas
+\texttt{latencia\_deteccion} & Ticks entre que una divergencia ocurre y el agente la nota \\ \sepfilas
+\texttt{n\_consultas} & Consultas 2 y 3 a la KB o al filtro hechas ante una divergencia (las que cobra \texttt{ticks\_por\_ask}) \\ \sepfilas
+\texttt{lambda\_estimado} & $\hat\lambda$ de \BY{} al final de la corrida \\
+\bottomrule
+\end{tabular}
+\caption{Métricas de respuesta, recogidas en cada corrida.}
+\label{tab:metricas}
+\end{table}
+
+\subsection{Controles de sanidad}\label{sec:controles}
+
+Ninguna figura vale nada si el modelo no supera antes una batería de controles falsables, escritos antes de ver los datos (cuadro~\ref{tab:controles}). Los cuatro primeros que se evalúan sobre los barridos son predicciones sobre el comportamiento agregado, los controles exactos se comparan corrida a corrida y no en promedio, y los que son propiedades del código viven como pruebas automáticas, que en total suman 278 (277 pasan y una se salta por diseño). Vale la pena anotar con honestidad que no todos pasan con la misma holgura: El control 2 pasa con margen, mientras que el control 3 pasa solo por el signo, pues 85.0 contra 87.5 es una diferencia que queda dentro del ruido de 30 réplicas, de forma que lo prudente es leerlo como «el lazo cerrado no mejora» más que como «el lazo cerrado empeora».
+
+\begin{table}[htbp]
+\centering
+\footnotesize
+\begin{tabular}{@{}r L{5.4cm} L{7.2cm} l@{}}
+\toprule
+& \textbf{Predicción} & \textbf{Observado} & \textbf{Estado} \\
+\midrule
+1 & $\lambda=0 \Rightarrow$ \CL{} $=$ \OL & 93.3 contra 93.3 & Pasa \\ \sepfilas
+2 & $c=0$, $p=1$, $r=\infty \Rightarrow$ \CL{} $\ge$ \OL{} en todo $\lambda$ & \CL$-$\OL: \dif{+14.0}{3.4}, \dif{+16.0}{4.5}, \dif{+45.0}{4.0} y \dif{+56.0}{4.3} con $\lambda=0.05$, 0.1, 0.25 y 0.5; exacto en $\lambda=0$ & Pasa \\ \sepfilas
+3 & $p=0.5$, $c=10$, $\lambda$ bajo $\Rightarrow$ \CL{} $<$ \OL & 85.0 contra 87.5 (con $\lambda=0.05$, \dif{-5.0}{5.6}) & Solo por signo \\ \sepfilas
+4 & Misma semilla $\Rightarrow$ misma trayectoria & Prueba automática, bit a bit & Pasa \\ \sepfilas
+5 & A* $=$ BFS en longitud de ruta & Prueba automática & Pasa \\ \sepfilas
+6 & $B=0 \Rightarrow$ \GOV{} $\equiv$ \OL{} & 180 pares, 0 distintos (81.3 contra 81.3) & Exacto \\ \sepfilas
+7 & H2: \KB{} \ahora, $r=\infty \equiv$ \CL; con $\lambda=0$, en todo $r$ & 0 de 120 distintas; 0 de 90 & Exacto \\ \sepfilas
+8 & HB2: \BY{} \ahora, $r=\infty \equiv$ \CL & 0 de 120 distintas & Exacto \\ \sepfilas
+9 & Solidez: la celda real está siempre en $R(r,t)$ y tiene probabilidad positiva; soporte del filtro $=$ región; DPLL en $4\times4$ & Pruebas automáticas; el motor lógico pasa además 20 pruebas (R1–R5 del libro, enumeración de modelos frente a DPLL en 100 oraciones, una cadena de 40 implicaciones en menos de un segundo) & Exacto \\ \sepfilas
+10 & Regresión: las filas que repiten una configuración ya corrida la reproducen & \OL{} y \CL{} de \texttt{conocimiento} frente a \texttt{observabilidad}: 0 de 720; \MB{} con $r=3$ frente a \texttt{principal}: 0 de 120; la celda $K=8$ de los barridos de escasez reproduce sus barridos de origen & Exacto \\ \sepfilas
+11 & Orden sorteado: se conservan los signos que sostienen las conclusiones & Caliente$-$frío y \MB$-$mejor plan: 5 de 6 celdas; abierto$-$cerrado: 3 de 6 & Por signo \\
+\bottomrule
+\end{tabular}
+\caption{Controles de sanidad. Los controles 1–3 y 6 se evalúan sobre los barridos; el 11 se discute en §\ref{sec:res-orden}; el resto son pruebas automáticas o comparaciones exactas entre archivos de resultados.}
+\label{tab:controles}
+\end{table}
+
+\subsection{Hipótesis escritas de antemano}\label{sec:hipotesis}
+
+Todas las hipótesis se fijaron por escrito antes de correr el barrido que las evalúa, de modo que el resultado sea falsable y que un rechazo cuente como resultado (cuadro~\ref{tab:hipotesis}). Las cinco originales se escribieron en la fase de planeación; las del agente basado en conocimiento y las del bayesiano se fijaron después de la corrección de la regla de costo, con $c=5$, $p=0.9$ y 30 semillas, y se evalúan por pares de semilla. Las cinco hipótesis del Avance~2 para el siguiente paso se revisan aparte, en la sección~\ref{sec:avance2}.
+
+\begin{table}[htbp]
+\centering
+\footnotesize
+\begin{tabular}{@{}l L{13.2cm}@{}}
+\toprule
+\textbf{Id.} & \textbf{Enunciado (resumido)} \\
+\midrule
+O1 & Existe un umbral $\lambda^{*}$ por debajo del cual el lazo abierto iguala o supera al que se auto-edita \\ \sepfilas
+O2 & $\lambda^{*}$ se desplaza hacia arriba cuando $c$ crece \\ \sepfilas
+O3 & Por debajo de cierta competencia $p$, auto-editarse es peor que no hacerlo \\ \sepfilas
+O4 & \GOV{} supera a \CL{} con dinamismo alto, porque el presupuesto amortigua el \emph{thrashing} \\ \sepfilas
+O5 & \CR{} tiene un costo medible frente a la reparación en caliente \\ \sepfilas
+Orden & Sortear el orden de activación no cambia el signo de las diferencias que sostienen las conclusiones \\ \sepfilas
+Escasez & Con recursos escasos la reparación vale \emph{más}; si sale lo contrario, la explicación será el costo de oportunidad de deliberar cuando sobran objetivos \\ \sepfilas
+H1 & Con $r \in \{1,3\}$ y $\lambda>0$, \KB{} (\llegada) supera a \CL \\ \sepfilas
+H1b & Con $r=3$, \KB{} alcanza a la mejor de \OL{} y \MB{} en cada $\lambda$, con la expectativa de que falle a $\lambda=0.5$ \\ \sepfilas
+H2 & Control exacto: \KB{} \ahora{} con $r=\infty$ $\equiv$ \CL \\ \sepfilas
+H3 & Con \texttt{ticks\_por\_ask}$\,>0$ la ventaja de H1 se encoge y existe un valor a partir del cual se invierte \\ \sepfilas
+H4 & El horizonte \llegada{} cambia reparaciones proactivas por replanificaciones forzadas y reduce los ticks deliberando; H1 solo se sostiene si lo evitado supera a lo añadido \\ \sepfilas
+HB1 & Con $r \in \{1,3\}$ y $\lambda>0$, \BY{} supera a \KB{} (ambos con \llegada) \\ \sepfilas
+HB2 & Control exacto: \BY{} \ahora{} con $r=\infty$ $\equiv$ \CL \\ \sepfilas
+HB3 & El error $|\hat\lambda-\lambda|$ es pequeño y decrece con el número de ensayos (peor con $r=1$) \\ \sepfilas
+HB4 & A $\lambda=0.5$ y $c=5$, \BY{} sigue por debajo de \MB \\ \sepfilas
+HB5 & El filtro está calibrado: Las celdas con probabilidad asignada $\approx x$ contienen al recurso con frecuencia $\approx x$ \\ \sepfilas
+S1–S3 & $\lambda$ domina la varianza de toda política con plan; $c$ explica más que $p$ la diferencia \OL$-$\CL; $r$ mueve el nivel pero poco la diferencia \\ \sepfilas
+ABC & $\lambda$ se recupera con precisión de la telemetría de un despliegue en frío, mientras que $p$ sale mucho más ancha \\
+\bottomrule
+\end{tabular}
+\caption{Hipótesis escritas antes de correr cada barrido. Su veredicto se resume en el cuadro~\ref{tab:veredictos}.}
+\label{tab:hipotesis}
+\end{table}

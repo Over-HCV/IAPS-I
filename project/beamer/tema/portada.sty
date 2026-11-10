@@ -1,0 +1,64 @@
+% =============================================================================
+% portada.sty — lo único que se toma de Slate Blocks: la foto y su calma.
+%
+% Midcentury Modern pone el formato (tipografía, pie, páginas de sección); de
+% Slate se traen dos cosas y nada más:
+%
+%   \portadaFoto{archivo}{velo}   la foto a sangre en la portada, bajo un velo
+%                                 del color primario del tema, para que el
+%                                 título claro de Midcentury se siga leyendo
+%   \marcaDeAgua{archivo}         la misma foto al 6,7 % bajo cada diapositiva:
+%                                 se lee como textura de papel, no como imagen
+%
+% Foto: figures/background.png de Slate Blocks, CC BY 4.0 (fotografía del
+% autor de la plantilla, pasada a acuarela). Se acredita en la última
+% diapositiva.
+%
+% Se carga DESPUÉS de beamerthememidcenturymodern, que define el gancho
+% \mcmFondoPortada (vacío por defecto) dentro de su plantilla de portada.
+% =============================================================================
+\NeedsTeXFormat{LaTeX2e}
+\ProvidesPackage{portada}[2026/10/10 foto de portada y marca de agua]
+
+\RequirePackage{tikz}
+
+\makeatletter
+
+% \cubrir{archivo}: la imagen cubre toda la diapositiva sin deformarse
+% (\slatecover de Slate). A lo ancho, una foto 16:10 en papel 16:9 sobra por
+% arriba y abajo y no pasa nada; al revés quedaría una franja blanca, así que
+% si a lo ancho no alcanza la altura se escala por altura. El nodo va en el
+% centro de la página y lo que sobra lo recorta el borde, parejo.
+\newsavebox{\portada@caja}
+\newcommand{\cubrir}[1]{%
+  \sbox{\portada@caja}{\includegraphics[width=\paperwidth]{#1}}%
+  \ifdim\ht\portada@caja<\paperheight
+    \includegraphics[height=\paperheight]{#1}%
+  \else
+    \usebox{\portada@caja}%
+  \fi
+}
+
+% El velo es el color primario del tema (terracota en Kraft, azul en
+% DeepBlue) y no blanco: el título de Midcentury es claro sobre oscuro, y un
+% velo blanco lo borraría. Con 0,55 la foto se ve detrás sin competir.
+\newcommand{\portadaFoto}[2]{%
+  \renewcommand{\mcmFondoPortada}{%
+    \node[inner sep=0pt] at (current page.center) {\cubrir{#1}};%
+    \fill[mcmPrimary, opacity=#2]
+      (current page.south west) rectangle (current page.north east);%
+  }%
+}
+
+% Necesita dos pasadas (remember picture): con una sola el fondo sale vacío y
+% LaTeX no avisa. build.sh compila con latexmk, que repite solo.
+\newcommand{\marcaDeAgua}[1]{%
+  \usebackgroundtemplate{%
+    \tikz[remember picture, overlay]{%
+      \node[opacity=0.067, inner sep=0] at (current page.center) {\cubrir{#1}};%
+    }%
+  }%
+}
+
+\makeatother
+\endinput

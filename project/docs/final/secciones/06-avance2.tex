@@ -1,0 +1,55 @@
+% !TEX root = ../main-es.tex
+%TC:macro \limite [ignore,ignore]
+%TC:macro \nota [ignore]
+%TC:macro \TODO [ignore]
+%TC:macro \parencite [ignore]
+%TC:macro \textcite [ignore]
+\section{Del Avance 2 al resultado final}\label{sec:avance2}
+
+\subsection{Lo que encontró el Avance 2}
+
+El Avance~2 fue un cuaderno autocontenido con una versión deliberadamente reducida del modelo, cuyo objetivo era aislar el núcleo de la pregunta, el plano $(\lambda, c)$, antes de reintroducir uno a uno los demás parámetros. Conservaba la retícula de $15\times15$ con un 15\,\% de obstáculos, los recursos que derivan con probabilidad $\lambda$, la deliberación que ocupa $c$ ticks mientras el mundo se mueve y el plan calculado con el mundo del inicio de la deliberación, y fijaba todo lo demás: Visión total ($r=\infty$), replanificador exacto ($p=1$), capacidad 1 (sin trabajo en curso), seis recursos, tres políticas (\RX, \OL{} y \CL), 300 ticks y 10 semillas, en un barrido de 600 corridas con $\lambda\in\{0, 0.1, 0.25, 0.5\}$ y $c\in\{0,1,2,5,10\}$. Ambos planificadores ya pagaban el mismo precio por cada reparación, de forma que solo diferían en cuándo invocaban al replanificador. Cabe mencionar que la elección era favorable a la replanificación a propósito, pues visión total más oráculo perfecto es el mejor caso posible para el lazo cerrado, de modo que el resultado funcionaba como una cota superior de lo que reparar al ver la divergencia podía lograr.
+
+Los resultados fueron nítidos. Primeramente, con $\lambda=0$ ambos planificadores obtenían 125 en todo $c$, lo cual confirmaba el control; con $c=0$ el lazo cerrado superaba al abierto a $\lambda=0.25$ (125 contra 118) y a $\lambda=0.5$ (128 contra 114), con un empate práctico a $\lambda=0.1$ (122 contra 123). Progresivamente, al cobrar un solo tick por reparación la relación se invertía en todo el rango, pues con $c=1$ el lazo abierto ganaba a $\lambda=0.1$ (118.1 contra 104.0), a $\lambda=0.25$ (106.2 contra 68.5) y a $\lambda=0.5$ (79.8 contra $-11.3$), de forma que en el caso idealizado el cruce quedaba entre $c=0$ y $c=1$, es decir, la ventaja del lazo cerrado no resistía ni el menor costo de deliberación. El mecanismo estaba en el número de reparaciones, pues el lazo cerrado reparaba ante cada deriva de su objetivo y el abierto solo al fallar (101.3 reparaciones contra 22.2 a $\lambda=0.5$ con $c=1$), y con $c=10$ el lazo cerrado pasaba 289.3 de sus 300 ticks deliberando. Finalmente, el reflejo, que nunca delibera, se mantenía entre 54 y 86 y superaba a ambos planificadores cuando $\lambda c$ crecía (86 contra 27.2 y $-121.4$ con $c=2$ y $\lambda=0.5$).
+
+Vale la pena anotar que los niveles de utilidad del Avance~2 no se comparan directamente con los del modelo final, porque allí la utilidad restaba un punto por cada tick deliberando (es decir, $\kappa=1$, de ahí las utilidades negativas), mientras que en el modelo final $\kappa=0$, y porque cambian la capacidad, el número de recursos y el horizonte. Lo que sí se compara es el sentido de cada efecto.
+
+\subsection{La corrección de la regla de costo}
+
+El cuaderno simplificado del Avance~2 ya cobraba lo mismo a ambos planificadores, pero el modelo completo no lo hacía: Hasta el 2026-10-09, en el modelo completo el lazo abierto replanificaba gratis tras un fallo, con A* exacto y sin consumir ticks, mientras que el lazo cerrado pagaba $c$ y pasaba por el oráculo de competencia $p$ (§\ref{sec:regla-costo}). Al corregir la regla y volver a correr todos los barridos, varias conclusiones de la versión anterior no sobrevivieron:
+
+\begin{itemize}[leftmargin=1.4em, itemsep=0.2em]
+  \item \textbf{La dominancia del lazo abierto:} Antes dominaba en todo $\lambda$ y en todo $c$ bajo observabilidad parcial, con ventajas que llegaban a 108 puntos, y esa dominancia era casi entera el efecto de replanificar gratis tras cada fallo; con la regla corregida y $r=3$ el lazo abierto y el cerrado casi empatan (§\ref{sec:res-frontera}).
+  \item \textbf{La observabilidad como la variable que lo decide todo:} La lectura anterior sostenía que la observabilidad dominaba el resultado y que con visión total la replanificación ganaba, mientras que ahora la observabilidad mueve sobre todo el nivel de todas las políticas, y con $c=5$ la visión total no hace ganar al lazo cerrado (§\ref{sec:res-observabilidad}).
+  \item \textbf{El rescate por presupuesto:} Un \GOV{} con el presupuesto agotado se comportaba como un lazo abierto que replanificaba gratis, de forma que la mayor parte de su aparente rescate del lazo cerrado era el mismo artefacto; ahora el mejor presupuesto a $\lambda=0.5$ es cero (§\ref{sec:res-gobernanza}).
+\end{itemize}
+
+La conclusión que sí sobrevivió, y se fortaleció, es la de reparar en caliente frente a reiniciar en frío (a $\lambda=0.1$ con $c=5$ pasó de $+4$ a $+21$ puntos), precisamente porque ahora las dos políticas pagan lo mismo por cada replanificación y lo único que las separa es lo que la comparación quiere medir, el trabajo en curso que una conserva y la otra tira. La lección metodológica es que una asimetría de contabilidad entre las políticas comparadas puede fabricar conclusiones enteras, y por eso el modelo final incluye un control exacto que la vigila, pues con $B=0$ \GOV{} debe ser idéntica a \OL{} corrida a corrida, y lo es en 180 pares sin una sola diferencia.
+
+\subsection{Las cinco hipótesis del siguiente paso}
+
+El Avance~2 cerraba con cinco hipótesis para reintroducir los elementos fijados, cada una contra el caso base idealizado. El cuadro~\ref{tab:avance2} da su veredicto con el modelo final.
+
+\begin{table}[htbp]
+\centering
+\footnotesize
+\begin{tabular}{@{}L{4.6cm} L{10.4cm}@{}}
+\toprule
+\textbf{Hipótesis del Avance 2} & \textbf{Veredicto con el modelo final} \\
+\midrule
+1. Con $r$ finito, replanificar sobre una creencia obsoleta degrada al replanificador hasta que comprometerse con el plan resulta mejor & \textbf{A medias:} $r$ mueve sobre todo el nivel, y la diferencia entre abierto y cerrado es casi nula con $r=1$ y $r=3$ (48.0 contra 47.9 y 63.3 contra 62.1) y moderada con $r=\infty$ (\dif{+15.0}{2.5}). La observabilidad parcial no agravó la desventaja del lazo cerrado sino que la diluyó, porque con menos visión detecta, y paga, menos divergencias \\ \sepfilas
+2. Con $p<1$ existe una calidad mínima desde la cual conviene auto-editarse & \textbf{No en la forma esperada:} $p$ pesa más sobre quien replanifica menos (de 36.7 a 61.0 en el abierto frente a de 48.3 a 59.7 en el cerrado, a $\lambda=0.25$), explica a lo sumo el 1.5\,\% de la varianza de cada política y no aparece una competencia mínima \\ \sepfilas
+3. Con capacidad mayor que 1, reparar en caliente supera a reiniciar en frío & \textbf{Sí:} Desde $\lambda=0.1$ ($+16$ a $+22$ con $c$ entre 2 y 5, $+32$ a $\lambda=0.5$ con $c=0$, hasta $+80.7$ con visión total), salvo donde ambas colapsan; es la conclusión más robusta, también al orden de activación \\ \sepfilas
+4. Un presupuesto de ediciones amortigua el \emph{thrashing} & \textbf{Evita el peor caso pero no rescata:} $B=3$ rinde 23.7 contra 10.0 a $\lambda=0.5$ y recorta las ediciones desperdiciadas de 181.8 a 50.7, pero $B=0$ ($\equiv$ \OL) rinde 27.0, y $\eta^2(B)\le0.003$ \\ \sepfilas
+5. El barrido completo, con 30 réplicas, ceguera, latencia y el precio $\kappa$, traza la frontera & \textbf{Hecho y extendido, salvo $\kappa$:} 16.260 corridas en trece barridos, más 600 series temporales y 3.000 simulaciones de ABC, aunque todos los barridos se corrieron con $\kappa=0$, de modo que el efecto del precio por tick de deliberar quedó sin medir \\
+\bottomrule
+\end{tabular}
+\caption{Las cinco hipótesis con que cerraba el Avance~2 y su veredicto con el modelo final.}
+\label{tab:avance2}
+\end{table}
+
+\subsection{Lo que el Avance 2 no anticipó}
+
+El Avance~2 no incluía políticas sin plan más allá del reflejo, por lo que no podía anticipar que la frontera relevante separa deliberar de no deliberar: Con $\lambda$ alto y $c\ge2$ la mejor política es \MB, un agente reactivo que mantiene creencias y nunca paga deliberación, y esa frontera es además la más estable del trabajo, pues sobrevive al orden de activación, aparece desde los primeros ticks y se ensancha con la abundancia de objetivos. Cabe mencionar que la pista estaba en el propio Avance~2, donde el reflejo ya superaba a ambos planificadores cuando $\lambda c$ crecía, aunque entonces se leyó como una curiosidad de la línea base y no como la frontera que buscaba la pregunta.
+
+Tampoco anticipó tres cosas más. Primeramente, que con observabilidad parcial y un replanificador imperfecto el lazo abierto no dominaría al cerrado sino que empatarían, de forma que el cruce idealizado entre $c=0$ y $c=1$ se convirtió, en el modelo completo, en una región amplia donde monitorear el plan no compra nada medible. Progresivamente, que el valor de reparar en caliente no sería monótono en $c$, y que la escasez de recursos, en vez de hacer más valiosa la reparación, la haría valer menos. Finalmente, la promesa con que cerraba el Avance~2 (reportar la frontera con sus cifras e incertidumbres y traducirla en un criterio de cuándo conviene que un agente reescriba su propio plan) se cumple en la sección~\ref{sec:resultados} y en la discusión que sigue, con el pequeño detalle de que el criterio resultó depender mucho más del dinamismo y del costo de deliberar que de la calidad del replanificador.

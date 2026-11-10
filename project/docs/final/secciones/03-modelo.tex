@@ -1,0 +1,159 @@
+% !TEX root = ../main-es.tex
+%TC:macro \limite [ignore,ignore]
+%TC:macro \nota [ignore]
+%TC:macro \TODO [ignore]
+%TC:macro \parencite [ignore]
+%TC:macro \textcite [ignore]
+\section{El modelo}\label{sec:modelo}
+
+El modelo está implementado en MESA 3.5.1 \parencite{kazil2020mesa}. Todas las arquitecturas comparten un mismo cuerpo de agente, el recolector, y lo único que cambia entre ellas es la política, es decir, cómo reacciona cada una cuando el plan y el mundo dejan de coincidir, de forma que cualquier diferencia de rendimiento se puede atribuir al criterio de replanificación y no a diferencias de implementación.
+
+\subsection{El entorno de tarea}
+
+El cuadro~\ref{tab:peas} especifica el entorno de tarea y el cuadro~\ref{tab:entorno} lo clasifica. La decisión de modelado central es tratar \texttt{DELIBERAR} como un actuador más, que ocupa $c$ ticks del reloj durante los cuales el mundo sigue moviéndose, pues sin eso no hay costo que medir y la pregunta se vuelve trivial. De ahí se sigue la segunda decisión: El plan que produce una deliberación se calcula con el mundo tal como estaba cuando la deliberación empezó, de forma que si el mundo se movió mientras el agente pensaba, el plan nace desactualizado.
+
+\begin{table}[htbp]
+\centering
+\small
+\begin{tabular}{@{}L{2.6cm} L{12.4cm}@{}}
+\toprule
+\textbf{Componente} & \textbf{Especificación} \\
+\midrule
+P (rendimiento) & Recursos entregados en la base antes de $T_{\mathrm{max}}=400$, penalizados por el tiempo dedicado a deliberar: $U_{\text{neta}} = 10\cdot\text{entregas} - \kappa\cdot\text{ticks deliberando}$ \\ \sepfilas
+E (entorno) & Retícula de $15\times15$ con vecindad de von Neumann y un 15\,\% de obstáculos fijos; 8 recursos que, en cada tick, se desplazan con probabilidad $\lambda$ a una celda vecina transitable al azar, y que se reponen al entregarse; una base de entrega en posición fija \\ \sepfilas
+A (actuadores) & \texttt{GOTO} (un paso por tick), \texttt{PICK}, \texttt{DELIVER} y \texttt{DELIBERAR}, que consume $c$ ticks y produce un plan nuevo; solo para las dos políticas que infieren, \texttt{ASK} a su base de conocimiento o a su filtro, que cuesta \texttt{ticks\_por\_ask} ticks (0 por defecto) \\ \sepfilas
+S (sensores) & Contenido de las celdas dentro del radio de visión $r$; fuera de él el agente solo tiene su creencia \\
+\bottomrule
+\end{tabular}
+\caption{Descripción PEAS del entorno de tarea \parencite[§2.3.1]{russellNorvig2020}. El agente recoge hasta tres recursos (su capacidad) antes de volver a entregarlos, lo cual crea trabajo en curso que un reinicio en frío puede perder.}
+\label{tab:peas}
+\end{table}
+
+\begin{table}[htbp]
+\centering
+\small
+\begin{tabular}{@{}l l L{9.2cm}@{}}
+\toprule
+\textbf{Propiedad} & \textbf{Valor} & \textbf{Cómo se controla} \\
+\midrule
+Observable & Parcialmente & El radio $r$ (con $r=\infty$ el entorno es totalmente observable) \\ \sepfilas
+Determinista & Estocástico & La deriva de los recursos ($\lambda$) y la competencia del oráculo ($p$) \\ \sepfilas
+Episódico & Secuencial & Las decisiones tempranas condicionan el resto: Es el régimen de horizonte largo \\ \sepfilas
+Estático & Dinámico & Los recursos se mueven mientras el agente delibera, que es lo que hace costosa la deliberación \\ \sepfilas
+Discreto & Discreto & Retícula y ticks enteros \\ \sepfilas
+Agentes & Uno & El régimen multi-agente queda fuera \\ \sepfilas
+Conocido & Conocido & Se conocen las reglas, no el estado; \BY{} conoce la forma de la deriva pero aprende $\lambda$ \\
+\bottomrule
+\end{tabular}
+\caption{Clasificación del entorno de tarea \parencite[§2.3.2]{russellNorvig2020}. El caso $\lambda=0$ y $r=\infty$ colapsa a un entorno estático y totalmente observable, donde el plan inicial es óptimo por construcción.}
+\label{tab:entorno}
+\end{table}
+
+Cabe mencionar dos convenciones que conviene tener presentes al leer las cifras. Primeramente, en todos los barridos el precio por tick de deliberación quedó en $\kappa=0$, de modo que la utilidad neta es exactamente diez veces las entregas (una utilidad de 93.3 significa 9.33 entregas por corrida) y el único castigo por deliberar es el tiempo que el agente pasa quieto mientras el mundo se mueve, no un cobro por tokens. Finalmente, por defecto el recolector actúa en cada tick antes de que los recursos deriven, y el parámetro \texttt{orden\_aleatorio} sortea ese orden tick a tick con el generador del modelo, lo cual se usa para comprobar que las conclusiones no dependen de él (§\ref{sec:res-orden}).
+
+\subsection{El plan como programa editable}
+
+El plan es un programa de líneas con un contador que indica cuál toca, con las operaciones primitivas \texttt{GOTO(celda)}, \texttt{PICK(recurso)}, \texttt{DELIVER} y \texttt{SCAN}, y el agente ejecuta exactamente una línea por tick. Editar el plan es reemplazar su sufijo desde una posición dada, operación que se acepta o se rechaza entera, de forma que nunca deja el plan a medias, y que se rechaza en dos casos, cuando intenta reescribir líneas ya ejecutadas y cuando altera una línea que está fuera del \emph{alcance de edición}. Todo plan, sea cual sea la política, termina con una entrega bloqueada, que corresponde a los invariantes que una reparación no puede violar, de forma que ninguna reparación puede eliminar la entrega comprometida y el alcance de edición es común a todas las políticas que replanifican.
+
+\subsection{Las ocho arquitecturas}
+
+El cuadro~\ref{tab:politicas} resume las ocho políticas. Las dos primeras son los agentes reactivos de la taxonomía de \textcite[§2.4]{russellNorvig2020}, las cuatro siguientes extienden al agente basado en objetivos con las variantes de replanificación de §11.5, y las dos últimas, que se añadieron tras el Avance~2, reparan en caliente como \CL{} pero antes de elegir objetivo y antes de pagar una reparación se preguntan qué saben de verdad, con lógica o con probabilidad. Vale la pena anotar que la diferencia de rendimiento entre \CR{} y \CL{} es, por construcción, el valor cuantificado de reparar en caliente en lugar de reiniciar en frío, que es la decisión de ingeniería que motivó el trabajo.
+
+\begin{table}[htbp]
+\centering
+\footnotesize
+\begin{tabular}{@{}l L{3.0cm} L{9.0cm}@{}}
+\toprule
+\textbf{Política} & \textbf{R\&N} & \textbf{Cuándo replanifica y cómo aplica la edición} \\
+\midrule
+\RX & §2.4.2 reflejo simple & No planifica: Va con avidez al recurso visible más cercano, con un 15\,\% de pasos aleatorios para escapar de mínimos locales \\ \sepfilas
+\MB & §2.4.3 reflejo basado en modelo & No planifica: Persigue el recurso más cercano según sus creencias y nunca delibera \\ \sepfilas
+\OL & §2.4.4 basado en objetivos, lazo abierto & Ignora las divergencias y replanifica solo cuando el plan falla (un \texttt{PICK} sin recurso), en caliente \\ \sepfilas
+\CR & Lazo abierto con reinicio & Al detectar una divergencia o al fallar, en frío: Suelta la carga y arranca con el plan nuevo \\ \sepfilas
+\CL & §11.5.3 planificación en línea & Al detectar una divergencia (y al fallar, si aun así ocurre), en caliente: Parchea el sufijo y conserva el progreso \\ \sepfilas
+\GOV & Lazo cerrado con recursos acotados & Como \CL, con un presupuesto de $B$ reparaciones proactivas; agotado, se comporta como \OL \\ \sepfilas
+\KB & Cap.~7, fluentes (§7.7) & Como \CL, pero ante una divergencia solo repara si su KB deduce que el plan ya no puede cumplirse al llegar \\ \sepfilas
+\BY & §14.2 filtrado, §16.1 utilidad esperada & Como \KB, con una distribución por recurso y $\lambda$ aprendido; repara solo si reparar cuesta menos, en esperanza, que mantener el plan \\
+\bottomrule
+\end{tabular}
+\caption{Las ocho arquitecturas. Todas comparten el cuerpo del agente, el oráculo y la regla de costo; las seis que planifican difieren solo en \emph{cuándo} invocan al replanificador. En los encabezados de los cuadros anchos se abrevian como \ab{RX}, \ab{MB}, \ab{OL}, \ab{CR}, \ab{CL}, \ab{GOV}, \ab{KB} y \ab{BAY}, en ese orden.}
+\label{tab:politicas}
+\end{table}
+
+\subsection{La regla de costo}\label{sec:regla-costo}
+
+Toda política que planifica usa el mismo replanificador al mismo precio, de acuerdo con cuatro reglas:
+
+\begin{itemize}[leftmargin=1.4em, itemsep=0.2em]
+  \item \textbf{Los planes de rutina son gratuitos:} El plan inicial y el que sigue a una entrega sin que nada haya fallado se construyen con A* sobre la creencia, sin pasar por el oráculo ni consumir ticks, pues equivalen al programa que se le entrega de antemano al agente.
+  \item \textbf{Toda replanificación de reparación se paga:} La dispare un fallo del plan o una divergencia detectada, pasa por el oráculo con competencia $p$ y consume $c$ ticks, y se aplica en caliente salvo en \CR, que la aplica en frío.
+  \item \textbf{Sin objetivo no hay nada que pagar:} Si tras un fallo no queda ningún recurso conocido, el agente vuelve a la base con lo que lleve o deambula hasta descubrir algo.
+  \item \textbf{El presupuesto solo acota lo proactivo:} Las replanificaciones forzadas por un fallo son inevitables y no consumen el presupuesto $B$, de forma que con $B=0$ \GOV{} es idéntica a \OL{} corrida a corrida, lo cual sirve como control exacto.
+\end{itemize}
+
+\paragraph{La corrección del 2026-10-09.} Una versión anterior del modelo vaciaba el plan tras un fallo y lo reconstruía en el tick siguiente con A* exacto, sin oráculo y sin costo, de modo que \OL{} (que ignora las divergencias y espera a fallar) replanificaba gratis y con competencia perfecta, mientras que \CL{} pagaba $c$ ticks y la competencia $p$ en cada reparación. El experimento comparaba así una reparación pagada contra una gratuita, y esa asimetría inflaba tanto la ventaja del lazo abierto como el valor aparente de la gobernanza (que, agotado su presupuesto, se comportaba como un lazo abierto que replanificaba gratis). Con la regla actual la pregunta queda limpia, pues dado un mismo replanificador lo único que se compara es si conviene invocarlo al ver la divergencia o esperar a que el plan falle. Todos los barridos se volvieron a correr con la regla corregida y las lecturas se reescribieron a partir de los datos nuevos; qué conclusiones no sobrevivieron se discute en la sección~\ref{sec:avance2}.
+
+\subsection{El oráculo de replanificación}
+
+El oráculo abstrae al modelo de lenguaje que, en un motor real, propone la reparación del plan. Al recibir una petición de reparación procede así: Si el agente no ve la posición real de su objetivo, el oráculo no puede acertar y construye la ruta óptima hacia la creencia del agente (objetivo obsoleto), sea cual sea el sorteo de competencia; si la ve, con probabilidad $p$ devuelve la reparación óptima (A* hacia la posición real) y con probabilidad $1-p$ una reparación degradada pero plausible, que con igual probabilidad es A* hacia la posición obsoleta del objetivo o una ruta que llega al objetivo correcto con un desvío. Que el fallo sea coherente y no aleatorio es lo que sostiene la analogía, pues un modelo de lenguaje que se equivoca no devuelve basura sino algo razonable y equivocado. La propuesta arrastra siempre la continuación del plan (objetivos pendientes, regreso y entrega bloqueada), y conviene retener una consecuencia estructural, que con observabilidad parcial una parte de las consultas no depende de $p$ en absoluto.
+
+\subsection{La deliberación como acción interrumpible}
+
+Una deliberación ocupa $c$ ticks (con $c=0$ es instantánea), expone su progreso y puede ser interrumpida si llega una divergencia nueva antes de terminar, en cuyo caso los ticks gastados se pierden y la deliberación cuenta como edición desperdiciada, que es la forma operacional del \emph{thrashing}. Cabe mencionar que no se usó la clase \texttt{Action} de MESA~4.0 (una acción con duración, progreso e interrupción) porque esa clase es precisamente el objeto de estudio y importarla prehecha escondería el mecanismo que se quiere medir, ni el simulador de eventos discretos de MESA~3.5.1, porque el bucle de \texttt{batch\_run}, sobre el que descansa todo el aparato experimental, avanza tick a tick y no sabe nada de colas de eventos.
+
+\subsection{Observabilidad y monitoreo}
+
+El agente ve el contenido de las celdas dentro de su radio $r$ y guarda la última posición conocida de cada recurso, que es su creencia. Los tres niveles de monitoreo de \textcite[§11.5.3]{russellNorvig2020} aparecen en el modelo con papeles distintos: El monitoreo de acción es un \texttt{PICK} que falla porque el recurso no está, y es la única forma en que \OL{} descubre el problema; el monitoreo de plan marca una divergencia cuando el agente ve su objetivo en otra celda o ve vacía la celda donde creía que estaba, y es lo que dispara las reparaciones proactivas; y el monitoreo de objetivo actúa solo al reparar, momento en que se reelige como objetivo el recurso conocido más cercano. Vale la pena anotar que el diseño esperaba que un radio pequeño hiciera al agente \emph{perderse} divergencias, lo cual casi no ocurre por una razón estructural, pues el plan lleva al agente precisamente a la celda donde creía que estaba el recurso, de forma que tarde o temprano descubre que no está, y lo que cambia con el radio es \emph{cuándo} se entera, de ahí que la métrica relevante sea la latencia de detección.
+
+\subsection{El agente basado en conocimiento}\label{sec:modelo-kb}
+
+\KB{} hereda la reparación en caliente de \CL{} (el mismo monitoreo, el mismo oráculo, el mismo precio y la misma replanificación forzada tras un fallo), pero sus creencias son una base de conocimiento y su inferencia cambia la conducta en el punto exacto donde las demás políticas pagan, antes de elegir objetivo y antes de pedir una reparación.
+
+\paragraph{Qué sabe el agente.} En cada tick $t$ el agente hace \texttt{TELL} de lo que percibe como fluentes, $\mathit{Visto}(r,c,t)$ por cada recurso $r$ que ve en la celda $c$, $\neg\mathit{En}(r,c,t)$ por cada celda visible que no lo contiene y $\mathit{Recogido}(r,t)$ al recoger. Conoce además, como ley del mundo, el axioma de deriva
+\begin{equation}
+  \mathit{En}(r,c,t) \;\Rightarrow\; \bigvee_{c' \in N^{+}(c)} \mathit{En}(r,c',t+1),
+\end{equation}
+con $N^{+}(c)$ la propia celda más sus vecinas transitables, de modo que la distancia que importa para la deriva es la geodésica y no la de Manhattan; de $\lambda$ solo sabe si es cero, caso en el que el axioma se instancia como «los recursos no se mueven». Ninguna observación se retira nunca, pues $\mathit{Visto}(r,c,t)$ sigue siendo verdadera (lo era \emph{entonces}), de forma que la monotonía se conserva y lo que caduca es la conclusión «está ahí ahora», que deja de afirmarse y pasa a derivarse.
+
+\paragraph{La región posible.} Lo que la KB no puede descartar sobre la posición actual de $r$ es su región posible $R(r,t)$, que se mantiene con la recursión
+\begin{equation}
+  R(r,t) =
+  \begin{cases}
+    \{c\} & \text{si } \mathit{Visto}(r,c,t),\\[2pt]
+    E^{\delta_t}\!\bigl(R(r,t-1)\bigr) \setminus V_t & \text{en otro caso,}
+  \end{cases}
+  \qquad E(S) = \bigcup_{x \in S} N^{+}(x),
+\end{equation}
+donde $V_t$ es el conjunto de celdas visibles en $t$ (que, si $r$ no se ve, no lo contienen) y $\delta_t$ el número de derivas ocurridas desde la observación anterior (una por tick con el orden fijo, y cero, una o dos con el orden sorteado). Es la estimación de estado de \textcite[§4.4]{russellNorvig2020} escrita como axiomas de estado sucesor (§7.7), y a nivel de implementación se calcula con operaciones de conjuntos sobre la retícula (expansión, resta y pertenencia), porque codificar $\mathit{En}(r,c,t)$ para cada recurso, celda y tick explotaría en cláusulas. La equivalencia entre ambos niveles, en el sentido de \textcite{newell1982knowledge}, no se supone sino que se prueba (§\ref{sec:controles}): En una retícula de $4\times4$, DPLL responde \emph{falso} exactamente fuera de la región y \emph{desconocido} dentro.
+
+\paragraph{Las tres preguntas \texttt{ASK}.} Con $\hat{c}_r$ la última celda en que se observó $r$ y $a$ la posición del agente:
+\begin{enumerate}[leftmargin=1.6em, itemsep=0.2em]
+  \item \textbf{¿Dónde puede estar $r$ ahora?} Solo son candidatos los recursos con $\hat{c}_r \in R(r,t)$.
+  \item \textbf{¿Qué recurso tengo asegurado?} El objetivo se elige por el peor caso,
+  \[
+    \arg\min_r\; \max_{x \in R(r,t)} d(a,x),
+  \]
+  con la distancia de Manhattan que usan las demás políticas, de forma que una creencia vieja, cuya región ya es ancha, pierde frente a una observación reciente algo más lejana; el destino del plan sigue siendo $\hat{c}_r$.
+  \item \textbf{¿Sigue siendo ejecutable mi plan?} La respuesta tiene tres valores (válido, inválido o desconocido) y solo \emph{inválido} dispara una reparación. Con el horizonte \ahora{} el plan es inválido si la celda creída que el monitoreo acaba de refutar ya no está en $R(r,t)$, lo cual reproduce exactamente el monitor de \CL{} (que resulta ser la lectura a nivel de implementación de esta consulta); con el horizonte \llegada{}, que es el de los barridos, si faltan $k$ pasos para el \texttt{PICK} en la celda $c_{\text{PICK}}$, el plan es inválido solo si $c_{\text{PICK}} \notin E^{k}(R(r,t))$, es decir, si el recurso ya no puede estar ahí cuando el agente llegue.
+\end{enumerate}
+
+La actualización de la región es monitoreo por tick y es gratuita, igual que observar lo es para toda política, mientras que el parámetro \texttt{ticks\_por\_ask} cobra en ticks quieto cada consulta 2 o 3 hecha ante una divergencia, ticks que suman a los de deliberación y entran en la utilidad neta, de forma que el experimento puede medir cuánto puede costar saber más antes de dejar de compensar.
+
+\subsection{El agente bayesiano}\label{sec:modelo-bayes}
+
+\BY{} sabe lo mismo que \KB{} (la ley de deriva, lo que ve y lo que ve vacío), con dos diferencias, pues no recibe $\lambda$ sino que lo aprende, y en vez de una región mantiene una distribución de probabilidad por recurso.
+
+\paragraph{$\lambda$ aprendido.} Con una distribución previa $\mathrm{Beta}(1,1)$, cada recurso cuya celda anterior sigue a la vista es un ensayo de Bernoulli (se movió o no), de modo que tras $m$ movimientos en $n$ ensayos la estimación es la media posterior $\hat\lambda = (1+m)/(2+n)$. Cabe mencionar que el diseño original exigía ver el recurso en los dos ticks, regla que sesgaba $\hat\lambda$ a la baja (0.38 con $\lambda=0.5$ y $r=1$), porque un recurso que sale del disco de visión es un movimiento que no se ve.
+
+\paragraph{Filtro por recurso.} Al ver el recurso la distribución colapsa a su celda, y en cada tick sin verlo se predice con la caminata aleatoria y se corrige con lo visto vacío,
+\begin{align}
+  P'_t(x) &= (1-\hat\lambda)\,P_{t-1}(x)\,[\deg x > 0] + P_{t-1}(x)\,[\deg x = 0] + \hat\lambda \sum_{y \sim x} \frac{P_{t-1}(y)}{\deg y},\\
+  P_t(x) &\propto P'_t(x)\,[x \notin V_t],
+\end{align}
+con $\deg x$ el número de vecinas transitables de $x$. El soporte de $P_t$ es exactamente la región $R(r,t)$ de la subsección anterior, lo cual se comprueba tick a tick en las pruebas, de forma que el filtro no sabe \emph{dónde puede estar} nada distinto de lo que sabe la lógica, sino que le asigna pesos.
+
+\paragraph{Las dos decisiones.} El objetivo se elige por costo esperado, $\arg\min_r d_r/q_r$, con $d_r$ la distancia a $\hat{c}_r$ y $q_r$ la probabilidad de que el recurso siga ahí al llegar (el filtro propagado $d_r$ pasos). Ante una divergencia, con $k$ pasos hasta el \texttt{PICK} y $q$ la probabilidad de que el recurso esté en esa celda al llegar, el agente repara si y solo si
+\begin{equation}
+  c \;<\; (1-q)\,(c+k),
+\end{equation}
+es decir, si pagar $c$ ya cuesta menos que la esperanza de caminar $k$ pasos en vano y pagar después la replanificación forzada. Con $c=5$ y $k=3$, por ejemplo, la regla repara cuando $q<3/8$, mientras que \KB{} solo repara cuando $q=0$. Con el horizonte \ahora{} ambas decisiones se evalúan en el tick actual (sin propagar el filtro), y con visión total eso reduce \BY{} a \CL, que es el control exacto HB2.

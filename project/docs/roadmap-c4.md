@@ -52,12 +52,12 @@ captura el sesgo sistemático con un cambio mínimo.
 
 **Checklist**
 
-- [ ] `orden_aleatorio` en la firma de `OASysWorld.__init__`, guardado como atributo
-- [ ] `step()` sortea el orden con `self.random` cuando está activo
-- [ ] Test: con `rng` fijo y `orden_aleatorio=True`, dos corridas idénticas dan métricas idénticas (determinismo)
-- [ ] Test: con `False` (default), el orden es collector-primero siempre — el resto de la suite actúa como regresión
-- [ ] Control de robustez (opcional): correr un subconjunto del barrido `principal` con `orden_aleatorio=True` y verificar que el **signo** de `delta_hot_vs_cold` (`analysis.py:110`) no cambia
-- [ ] Nota de una línea en `info/02-design.md` (clasificación del entorno: el orden es un parámetro, no un supuesto)
+- [x] `orden_aleatorio` en la firma de `OASysWorld.__init__`, guardado como atributo
+- [x] `step()` sortea el orden con `self.random` cuando está activo
+- [x] Test: con `rng` fijo y `orden_aleatorio=True`, dos corridas idénticas dan métricas idénticas (determinismo)
+- [x] Test: con `False` (default), el orden es collector-primero siempre — el resto de la suite actúa como regresión
+- [x] Control de robustez (opcional): correr un subconjunto del barrido `principal` con `orden_aleatorio=True` y verificar que el **signo** de `delta_hot_vs_cold` (`analysis.py:110`) no cambia
+- [x] Nota de una línea en `info/02-design.md` (clasificación del entorno: el orden es un parámetro, no un supuesto)
 
 **Aceptación.** `uv run pytest project/tests -q` queda en verde y el control de robustez (si se
 corre) muestra la misma conclusión cualitativa para la reparación en caliente frente al reinicio
@@ -86,13 +86,13 @@ con `_flashes` igual que la película. Extender `Modo` con `"tira"` y despachar 
 
 **Checklist**
 
-- [ ] Helper `_ticks(frames, pasos=None)`: default equidistantes, sin duplicados, primero y último siempre incluidos
-- [ ] `figura_tira(...)` reutilizando `_panel_grid` y `_flashes`
-- [ ] `Modo = Literal["animacion", "estatico", "tira"]` + rama en `mostrar()`
-- [ ] Test: `_ticks` devuelve índices válidos, únicos, con extremos
-- [ ] Test: `figura_tira` devuelve una figura con el número esperado de ejes
+- [x] Helper `_ticks(frames, pasos=None)`: default equidistantes, sin duplicados, primero y último siempre incluidos
+- [x] `figura_tira(...)` reutilizando `_panel_grid` y `_flashes`
+- [x] `Modo = Literal["animacion", "estatico", "tira"]` + rama en `mostrar()`
+- [x] Test: `_ticks` devuelve índices válidos, únicos, con extremos
+- [x] Test: `figura_tira` devuelve una figura con el número esperado de ejes
 - [ ] Celda en el cuaderno: corrida `CLOSED_LOOP` con λ alto y una edición visible en la tira
-- [ ] Exportar un `.png` a `results/animaciones/` para la presentación
+- [x] Exportar un `.png` a `results/animaciones/` para la presentación
 
 **Aceptación.** La tira renderiza en el cuaderno y se entiende sin narración: dónde estaba el
 plan, dónde se rompió, qué sufijo se reescribió.
@@ -135,11 +135,11 @@ deliberación hecho visible).
 
 **Checklist**
 
-- [ ] `correr_dinamica(cada=5)` en `experiments.py` + flag `--dinamica` en el CLI, escribiendo parquet
-- [ ] `cargar_dinamica()` con el mismo contrato de errores que `cargar()` (`analysis.py:47`), es decir, el comando exacto si falta el archivo
-- [ ] `agregar_tiempo()` y `fig_dinamica()` en `analysis.py`
-- [ ] Test smoke: grilla chica, pocos pasos → columnas esperadas, y con `cada=k` los ticks guardados son los múltiplos de `k` más el último
-- [ ] Test: `agregar_tiempo` calcula media/SEM correctas sobre un DataFrame sintético
+- [x] `correr_dinamica(cada=5)` en `experiments.py` + flag `--dinamica` en el CLI, escribiendo parquet
+- [x] `cargar_dinamica()` con el mismo contrato de errores que `cargar()` (`analysis.py:47`), es decir, el comando exacto si falta el archivo
+- [x] `agregar_tiempo()` y `fig_dinamica()` en `analysis.py`
+- [x] Test smoke: grilla chica, pocos pasos → columnas esperadas, y con `cada=k` los ticks guardados son los múltiplos de `k` más el último
+- [x] Test: `agregar_tiempo` calcula media/SEM correctas sobre un DataFrame sintético
 - [ ] Sección en el cuaderno: punto de separación entre políticas por λ; lectura frente a `latencia_deteccion` y el thrashing
 
 **Aceptación.** Una figura con banda de error de 30 réplicas donde se distingue el tick en que el
@@ -199,13 +199,25 @@ regla de costo corregida), lo cual sirve de regresión gratuita.
 
 **Checklist**
 
-- [ ] Entradas `escasez` y `escasez_inf` en `SWEEPS` (`experiments.py:49`)
-- [ ] `fig_escasez()` en `analysis.py` (x=`n_resources`, serie=`politica`, faceta=`lambda_dinamismo`, una fila por régimen)
-- [ ] Correr: `uv run python -m project.experiments --sweep escasez --procesos 0` y lo mismo con `escasez_inf`
-- [ ] Test: la celda `n_resources=8` coincide exactamente con las filas correspondientes de `principal.csv` y `control2.csv`
-- [ ] Actualizar la tabla de barridos en `project/README.md` (8.640 → 12.000 corridas, más las de KB-2 si ya se corrieron)
-- [ ] `uv run python -m project.analysis --controles` sigue en verde tras los CSV nuevos
+- [x] Entradas `escasez` y `escasez_inf` en `SWEEPS` (`experiments.py:49`)
+- [x] `fig_escasez()` en `analysis.py` (x=`n_resources`, serie=`politica`, faceta=`lambda_dinamismo`, una fila por régimen)
+- [x] Correr: `uv run python -m project.experiments --sweep escasez --procesos 0` y lo mismo con `escasez_inf`
+- [x] Test: la celda `n_resources=8` coincide exactamente con las filas correspondientes de `principal.csv` y `control2.csv`
+- [x] Actualizar la tabla de barridos en `project/README.md` (8.640 → 12.000 corridas, más las de KB-2 si ya se corrieron) — hecho: 13 barridos y 16.260 corridas, con KB-2 y C5-B incluidos (2026-11-06)
+- [x] `uv run python -m project.analysis --controles` sigue en verde tras los CSV nuevos
 - [ ] Sección en el cuaderno: hipótesis, figura, veredicto por régimen
+
+**Resultado (2026-11-06).** Se añadió `KNOWLEDGE_BASED` a `escasez` (2.400 corridas; H1 de KB-2
+se sostuvo en parte) y `escasez_inf` corrió 1.440; las celdas `n_resources=8` reproducen
+`principal`, `conocimiento` y `control2` exactamente. **La hipótesis se refuta en los dos
+regímenes:** reparar vale igual o menos con escasez, no más. Con `r=∞` y `c=0`, a λ=0.5,
+`CLOSED_LOOP − OPEN_LOOP` crece con la abundancia (+36.7 ± 4.0 con 2 recursos, +62.0 ± 5.0
+con 16) y `CLOSED_LOOP − COLD_RESTART` también (+122 a +245). En el régimen mixto el lazo
+cerrado no gana de forma consistente, y la ventaja de `MODEL_BASED` sobre el mejor planificador
+crece con la abundancia (a λ=0.5, +13.0 ± 3.1 con 2 recursos y +96.0 ± 13.0 con 16). La
+lectura es la del costo de oportunidad: cuando sobran objetivos, cada tick deliberando cuesta
+más entregas que se dejan de hacer. `KNOWLEDGE_BASED` supera al lazo cerrado a λ=0.5 en todo
+`n` (+6 a +21).
 
 **Aceptación.** Los dos barridos corren en minutos (`--procesos 0`), la figura renderiza, la
 regresión de `n_resources=8` pasa y los cuatro controles de `--controles` (1, 2, 3 y el 6,

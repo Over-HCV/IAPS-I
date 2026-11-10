@@ -1,0 +1,57 @@
+% main-es.tex — Documento final del proyecto (curso 32310004), español
+%
+% No hay consigna oficial todavía (intro.md sin consigna), por lo que el documento sigue la
+% estructura estándar de un artículo. Cuando llegue la consigna, ese archivo manda y este
+% documento se adapta — no al revés.
+%
+% Guardarraíl de motor: el preámbulo usa fontspec (OpenType). Con pdflatex los
+% acentos salen rotos, así que aquí se aborta en vez de emitir un PDF malo.
+\RequirePackage{iftex}\RequireXeTeX
+
+\documentclass[12pt,letterpaper]{article}
+\newcommand{\docNombre}{Documento final}
+\input{../common/preamble}
+% Las figuras salen tal cual las exporta `python -m project.analysis --figuras`.
+\graphicspath{{../assets/pics/}{../../results/figuras/}{../../results/animaciones/}}
+
+% --- Macros locales de este documento (no van a common/: solo el final las usa) ---
+% Monoespaciada de la misma familia, escalada a la altura de x del texto, para que los
+% nombres de política no se vean más grandes que la prosa (ni en tablas \footnotesize).
+\setmonofont{LibertinusMono}[Extension=.otf, UprightFont=*-Regular, BoldFont=*-Regular, Scale=MatchLowercase]
+% Nombres de las ocho políticas, tal como aparecen en el código y en los CSV.
+\newcommand{\pol}[1]{\texttt{#1}}
+\newcommand{\RX}{\pol{REFLEX}}
+\newcommand{\MB}{\pol{MODEL\_BASED}}
+\newcommand{\OL}{\pol{OPEN\_LOOP}}
+\newcommand{\CR}{\pol{COLD\_RESTART}}
+\newcommand{\CL}{\pol{CLOSED\_LOOP}}
+\newcommand{\GOV}{\pol{GOVERNED}}
+\newcommand{\KB}{\pol{KNOWLEDGE\_BASED}}
+\newcommand{\BY}{\pol{BAYESIAN}}
+% Abreviaturas de política para los encabezados de cuadros anchos (ver cuadro de políticas).
+\newcommand{\ab}[1]{\pol{#1}}
+% Los nombres de política en monoespaciada no se dividen: un poco de holgura evita cajas
+% desbordadas en párrafos con varios de ellos.
+\setlength{\emergencystretch}{3em}
+% Diferencia pareada por semilla: media ± error estándar de la diferencia.
+\newcommand{\dif}[2]{$#1 \pm #2$}
+% Horizontes de validez del agente basado en conocimiento.
+\newcommand{\ahora}{«ahora»}
+\newcommand{\llegada}{«llegada»}
+
+\begin{document}
+
+\input{secciones/00-portada}
+\input{secciones/00-resumen}
+\input{secciones/01-introduccion}
+\input{secciones/02-marco}
+\input{secciones/03-modelo}
+\input{secciones/04-diseno}
+\input{secciones/05-resultados}
+\input{secciones/06-avance2}
+\input{secciones/07-discusion}
+\input{secciones/08-limites}
+\input{secciones/09-conclusiones}
+\input{secciones/10-referencias}
+
+\end{document}

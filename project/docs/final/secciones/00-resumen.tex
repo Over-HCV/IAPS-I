@@ -1,0 +1,18 @@
+% !TEX root = ../main-es.tex
+%TC:macro \limite [ignore,ignore]
+%TC:macro \nota [ignore]
+%TC:macro \TODO [ignore]
+%TC:macro \parencite [ignore]
+%TC:macro \textcite [ignore]
+\section*{Resumen}
+
+Los agentes auto-evolutivos reescriben durante su propia ejecución el plan que los guía, pero la decisión de cuándo hacerlo se toma hoy por intuición. Este trabajo la convierte en una frontera medible mediante un modelo basado en agentes en MESA, en el que un recolector opera sobre una retícula de $15\times15$ cuyos recursos se desplazan con probabilidad $\lambda$ por tick, y en el que reescribir el plan equivale a consultar a un oráculo con competencia $p$ que ocupa $c$ ticks mientras el mundo sigue moviéndose. Se comparan ocho arquitecturas, desde el reflejo simple hasta un agente basado en conocimiento con fluentes y uno bayesiano que aprende $\lambda$ mirando, en 16.260 corridas distribuidas en trece barridos con 30 semillas pareadas, más series temporales y una calibración por computación bayesiana aproximada (ABC).
+
+Con el mismo replanificador al mismo precio, reparar al detectar la divergencia y esperar a que el plan falle casi empatan (en 13 de las 16 celdas dinámicas la diferencia cae dentro de dos errores estándar), mientras que la frontera que sí aparece separa deliberar de no deliberar: Con $\lambda=0.5$ y $c\ge2$, o con $\lambda=0.25$ y $c\ge5$, el agente reactivo basado en modelo supera a toda política que planifica (98.3 contra 53.3 de la mejor con $c=2$), tanto más cuanto más abundan los objetivos. Reparar en caliente supera a reiniciar en frío desde $\lambda=0.1$ (de $+16$ a $+22$ puntos con $c$ entre 2 y 5). El agente lógico supera al lazo cerrado solo porque repara menos (\dif{+21.3}{3.8} con $r=3$ y $\lambda=0.5$), y el bayesiano, aunque su creencia está calibrada, decide peor que él (\dif{-16.0}{4.3}), porque su regla de utilidad esperada repara de más. Finalmente, la calibración por ABC recupera $\lambda$ a partir de la telemetría de un despliegue pero no $p$, lo cual basta para el criterio que se propone, que consiste en medir el dinamismo del entorno y el costo de deliberar antes que la calidad del replanificador.
+
+\medskip
+\noindent\textbf{Palabras clave:} agentes auto-evolutivos, monitoreo de ejecución, replanificación, metarazonamiento, modelos basados en agentes, agentes basados en conocimiento, filtrado bayesiano.
+
+\clearpage
+{\hypersetup{linkcolor=black}\tableofcontents}
+\clearpage

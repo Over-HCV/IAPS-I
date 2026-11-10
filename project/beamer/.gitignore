@@ -1,0 +1,17 @@
+# auxiliares de latexmk/biber; el PDF sí se versiona
+*.aux
+*.bbl
+*.bcf
+*.blg
+*.fdb_latexmk
+*.fls
+*.log
+*.nav
+*.out
+*.run.xml
+*.snm
+*.toc
+*.vrb
+
+# Deck de otro curso (AED, trabajo en grupo) usado solo como referencia del tema: no se versiona aquí
+_referencia-aed/

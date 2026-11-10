@@ -1,0 +1,38 @@
+% !TEX root = ../main-es.tex
+%TC:macro \limite [ignore,ignore]
+%TC:macro \nota [ignore]
+%TC:macro \TODO [ignore]
+%TC:macro \parencite [ignore]
+%TC:macro \textcite [ignore]
+\section{Límites}\label{sec:limites}
+
+Los resultados valen dentro de las condiciones en que se midieron, y conviene dejar escrito cuáles son, agrupadas según afecten a la validez externa, al alcance de los barridos o a las arquitecturas nuevas.
+
+\subsection*{Validez externa}
+
+\begin{itemize}[leftmargin=1.4em, itemsep=0.3em]
+  \item \textbf{Escala:} Un solo agente, una retícula de $15\times15$ y $T_{\mathrm{max}}=400$, por lo que el régimen multi-agente (incluida la extensión de meta-agentes que se consideró en la planeación) queda fuera.
+  \item \textbf{Costo en tokens:} Todos los barridos se corrieron con $\kappa=0$, de forma que el único castigo por deliberar es el tiempo perdido y no un costo monetario, y con $\kappa>0$ la frontera se desplaza sin que se haya medido cuánto.
+  \item \textbf{Oráculo:} Es una abstracción del modelo de lenguaje con dos modos de fallo, fiel al \emph{tipo} de error (plausible y equivocado) pero no a su distribución real, y su competencia no depende de la dificultad de la reparación.
+  \item \textbf{Unidades:} $\lambda$ y $c$ están en unidades del modelo (probabilidad de deriva por tick y ticks por reparación), de modo que llevar el criterio de la sección~\ref{sec:disc-criterio} a un sistema real exige fijar qué es un tick en él, lo cual este trabajo no hace.
+  \item \textbf{Calibración sintética:} El despliegue de la calibración por ABC lo genera el mismo modelo que la tabla de referencia, de forma que el ejercicio muestra que el procedimiento identifica $\lambda$ cuando el modelo es correcto, y no que el modelo describa un motor real; la telemetría tiene solo cinco tasas agregadas de un motor \OL{} con $c=5$ y $r=3$ fijos, y para $\lambda>0.5$ la recomendación extrapola desde los barridos.
+\end{itemize}
+
+\subsection*{Alcance de los barridos}
+
+\begin{itemize}[leftmargin=1.4em, itemsep=0.3em]
+  \item \textbf{Réplicas:} Con 30 réplicas por combinación, buena parte de las diferencias entre el lazo abierto y el cerrado caen dentro del error estándar (la mayor parte de la varianza de esa diferencia es ruido entre semillas), y el control 3 pasa solo por el signo (85.0 contra 87.5), por lo que conviene leerlo como «el lazo cerrado no mejora» y no como «el lazo cerrado empeora». La regla de dos errores estándar, además, no corrige por comparaciones múltiples.
+  \item \textbf{Visión total:} Solo se barrió con $c=5$ y $p=0.9$, además del control 2 y del barrido de escasez en el régimen donde replanificar gana (ambos con $c=0$ y $p=1$), de modo que la frontera en $c$ con observabilidad total queda sin trazar, y la inversión entre esos dos puntos no se puede atribuir solo a $c$, porque también cambia $p$.
+  \item \textbf{Alcance de edición:} Es fijo (solo la entrega final queda fuera del alcance del agente) y no se varía en ningún barrido, por lo que su efecto sobre el rendimiento no se ha medido.
+  \item \textbf{Dinámica y orden, en una rebanada:} Las series temporales solo tienen $c=5$ y $r=3$ y no guardan la latencia de detección, y el orden aleatorio solo sortea si el recolector actúa antes o después de la deriva, en un subconjunto de \texttt{principal} ($\lambda\ge0.1$ y $c\in\{2,5\}$).
+  \item \textbf{Escasez:} Se varió solo el número de recursos, mientras que la capacidad de carga del agente (3) y la reposición de cada recurso entregado quedaron fijas, por lo que el análogo del pasto que se agota no se probó.
+  \item \textbf{Sensibilidad:} Es un $\eta^2$ de un factor, solo sobre los cuatro barridos factoriales originales, y las interacciones (en particular $\lambda\times c$, que es la frontera misma) no se descompusieron.
+\end{itemize}
+
+\subsection*{Las arquitecturas que infieren}
+
+\begin{itemize}[leftmargin=1.4em, itemsep=0.3em]
+  \item \textbf{Inferencia gratuita:} Las preguntas de \KB{} y \BY{} no cuestan nada por defecto, y cuando cada consulta se cobra la ventaja se invierte con un solo tick, de modo que el resultado depende de que razonar sea mucho más barato que deliberar, lo cual es plausible para operaciones de conjuntos pero no está garantizado en un sistema real. Además, la equivalencia entre esas operaciones y DPLL se comprobó solo en una retícula de $4\times4$.
+  \item \textbf{La regla bayesiana:} Su modelo de costos omite que el plan reparado nace desactualizado y puede interrumpirse, y que un plan fallido deja al agente sin ver al objetivo, y no se probó una regla corregida, de modo que el rechazo de HB1 es el de esta regla y no el de la decisión bayesiana en general. El agente, por otra parte, aprende $\lambda$ pero recibe la forma de la deriva (una vecina transitable al azar).
+  \item \textbf{Mecanismos no aislados:} Dos lecturas plausibles quedaron sin una métrica que las confirme, la de por qué la competencia pesa más sobre el lazo abierto (un error le cuesta un viaje completo antes de descubrirlo) y la de por qué, con el orden sorteado, el lazo cerrado pierde frente al abierto.
+\end{itemize}

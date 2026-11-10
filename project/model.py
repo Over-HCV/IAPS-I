@@ -13,6 +13,7 @@ from mesa import Model
 from mesa.datacollection import DataCollector
 from mesa.discrete_space import OrthogonalVonNeumannGrid
 from project.agents import Collector, Policy, Resource
+from project.conocimiento import HORIZONTES
 from project.oracle import Oracle
 
 
@@ -44,6 +45,19 @@ class OASysWorld(Model):
             reactivas, para escapar de mínimos locales (R&N §2.4.2).
         max_steps: horizonte de la corrida.
         torus: si la retícula da la vuelta.
+        orden_aleatorio: si es ``True``, cada tick se sortea (con ``self.random``) si el
+            recolector actúa antes o después de que los recursos deriven. Con ``False``
+            (el valor de todos los barridos originales) el recolector actúa siempre
+            primero. Convierte el orden de activación en un parámetro en vez de un
+            supuesto (``docs/roadmap-c4.md``, paquete 1).
+        horizonte_validez: cuándo debe seguir siendo posible el plan para no repararlo
+            ante una divergencia: ``"ahora"`` (en el tick actual, que reproduce el monitor
+            de ``CLOSED_LOOP``) o ``"llegada"`` (al ejecutar el ``PICK``). Solo lo leen
+            ``KNOWLEDGE_BASED`` y ``BAYESIAN``, igual que solo ``GOVERNED`` lee el
+            presupuesto (``docs/roadmap-c4b.md``, KB-2).
+        ticks_por_ask: ticks quieto que cuesta cada consulta a la KB en un evento de
+            divergencia; suman a ``pasos_deliberando``. Solo lo leen las mismas dos
+            políticas.
         rng: semilla del generador. Se usa ``rng`` y no ``seed`` porque es el nombre
             que ``batch_run`` inyecta y porque ``seed`` está deprecado en Mesa 3.5.
     """
@@ -66,11 +80,20 @@ class OASysWorld(Model):
         epsilon_reflejo: float = 0.15,
         max_steps: int = 1000,
         torus: bool = False,
+        orden_aleatorio: bool = False,
+        horizonte_validez: str = "llegada",
+        ticks_por_ask: int = 0,
         rng: int | None = None,
     ) -> None:
         """Construir el mundo y colocar agentes y recursos."""
         super().__init__(rng=rng)
 
+        if horizonte_validez not in HORIZONTES:
+            raise ValueError(
+                f"horizonte_validez={horizonte_validez!r}; debe ser uno de {HORIZONTES}"
+            )
+        if ticks_por_ask < 0:
+            raise ValueError("ticks_por_ask no puede ser negativo")
         self.policy = Policy(policy)
         self.lambda_dinamismo = lambda_dinamismo
         self.capacidad = capacidad
@@ -83,6 +106,11 @@ class OASysWorld(Model):
         self.max_steps = max_steps
         self.dimensions = (size, size)
         self.torus = torus
+        self.orden_aleatorio = orden_aleatorio
+        self.horizonte_validez = horizonte_validez
+        self.ticks_por_ask = ticks_por_ask
+        self.derivas = 0
+        """Derivas ocurridas: cuántas veces han tenido los recursos ocasión de moverse."""
 
         self.grid: OrthogonalVonNeumannGrid = OrthogonalVonNeumannGrid(
             (size, size), torus=torus, capacity=None, random=self.random
@@ -253,11 +281,28 @@ class OASysWorld(Model):
         self._divergente_real = ahora
 
     def step(self) -> None:
-        """Un tick: el agente actúa, el mundo deriva, se miden las consecuencias."""
-        self.collector.step()
+        """Un tick: el agente actúa, el mundo deriva, se miden las consecuencias.
+
+        Con ``orden_aleatorio`` el sorteo decide si el recolector actúa antes o después
+        de la deriva. Con el orden fijo hay exactamente una deriva entre dos
+        observaciones consecutivas del agente; con el sorteado puede haber 0, 1 o 2
+        (recolector primero y luego segundo deja dos derivas en medio; segundo y luego
+        primero, ninguna). Por eso el modelo cuenta las derivas en ``derivas``, y las
+        políticas que razonan sobre el movimiento de los recursos (``KNOWLEDGE_BASED`` y
+        ``BAYESIAN``) expanden su conocimiento por el número real de derivas, en vez de
+        suponer una por tick.
+        """
+        collector_primero = (
+            not self.orden_aleatorio or self.random.random() < 0.5
+        )
+        if collector_primero:
+            self.collector.step()
         recursos = self.agents_by_type.get(Resource)
         if recursos:
             recursos.shuffle_do("step")
+        self.derivas += 1
+        if not collector_primero:
+            self.collector.step()
         self._contar_divergencia_real()
         self.datacollector.collect(self)
         if self.steps >= self.max_steps:
@@ -294,5 +339,9 @@ REPORTERS = {
     "utilidad_neta": lambda m: (
         m.valor_entrega * _c(m).entregas - m.kappa * _c(m).pasos_deliberando
     ),
+    # KB-2 y C5-B: consultas 2 y 3 hechas en eventos de divergencia (0 para las
+    # políticas que no infieren) y λ̂ de BAYESIAN (nan para el resto).
+    "n_consultas": lambda m: _c(m).n_consultas,
+    "lambda_estimado": lambda m: _c(m).lambda_estimado,
 }
 """Reporters de modelo. Las definiciones operacionales están en ``info/02-design.md`` §4."""

@@ -9,7 +9,8 @@ Igual que ``analysis``, separa las dos capas a propósito:
 
 - **datos** — :func:`traza_corrida` corre el modelo y devuelve una lista de :class:`Frame`
   inmutables; no sabe dibujar;
-- **dibujo** — :func:`animar` y :func:`figura_estatica` reciben esos frames y los pintan.
+- **dibujo** — :func:`animar`, :func:`figura_estatica` y :func:`figura_tira` reciben esos
+  frames y los pintan.
 
 La captura **no toca** ``model.py`` ni ``agents.py``: todo se lee desde fuera comparando
 el estado antes y después de cada ``model.step()``. La acción ejecutada en un tick no está
@@ -20,25 +21,27 @@ Uso en el cuaderno::
 
     from project import animacion as anim
 
-    anim.MODO = "animacion"          # o "estatico" para la figura de siempre
+    anim.MODO = "animacion"          # o "estatico" / "tira" para una figura sin JavaScript
     anim.mostrar(policy="CLOSED_LOOP", lambda_dinamismo=0.25, pasos=80)
 """
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 import sys
 from typing import Any, Literal
 
 from project.agents import Collector, Policy
 from project.book import LineOp
+from project.conocimiento import BaseConocimiento, expandir
+from project.filtro import CreenciaBayesiana
 from project.model import OASysWorld
 
 RESULTS = Path(__file__).parent / "results"
 ANIMACIONES = RESULTS / "animaciones"
 
-Modo = Literal["animacion", "estatico"]
+Modo = Literal["animacion", "estatico", "tira"]
 
 MODO: Modo = "animacion"
 """Modo por defecto. Espejo de ``analysis.BACKEND``: se cambia en un solo sitio."""
@@ -61,6 +64,11 @@ C_VISION = "#2f80ed"
 C_OK = "#2ca02c"
 C_MAL = "#d62728"
 C_LOCK = "#b8860b"
+C_REGION = C_RECURSO
+"""Color de la región posible y del mapa de probabilidad: el del recurso, porque dicen
+dónde *puede* estar. El gris de la creencia se confundía con el de los obstáculos."""
+ALFA_REGION = 0.28
+"""Alfa máximo de la capa de región: bajo, para que no tape obstáculos ni la visión."""
 
 METRICAS = (
     ("entregas", C_BASE),
@@ -101,6 +109,10 @@ class Frame:
         edit_desde: índice del primer renglón que cambió en la edición.
         interrumpida: True si una divergencia abortó la deliberación en curso.
         metricas: contadores acumulados hasta este tick.
+        regiones: región posible :math:`R(r,t)` de cada recurso rastreado, solo con
+            ``KNOWLEDGE_BASED`` (vacío con las demás políticas).
+        distribuciones: filtro de cada recurso rastreado como ``((coord, p), ...)`` con
+            ``p > 0``, solo con ``BAYESIAN`` (vacío con las demás políticas).
     """
 
     tick: int
@@ -120,6 +132,10 @@ class Frame:
     edit_desde: int | None
     interrumpida: bool
     metricas: dict[str, float]
+    regiones: dict[str, tuple[tuple[int, ...], ...]] = field(default_factory=dict)
+    distribuciones: dict[str, tuple[tuple[tuple[int, ...], float], ...]] = field(
+        default_factory=dict
+    )
 
 
 def _estado(modelo: OASysWorld) -> dict[str, Any]:
@@ -199,6 +215,46 @@ def _edicion(antes: dict[str, Any], ahora: dict[str, Any]) -> tuple[str | None, 
     return (None, None)
 
 
+def _conocimiento(
+    c: Collector, derivas: int
+) -> tuple[
+    dict[str, tuple[tuple[int, ...], ...]],
+    dict[str, tuple[tuple[tuple[int, ...], float], ...]],
+]:
+    """La región posible (``KNOWLEDGE_BASED``) o el filtro (``BAYESIAN``) **en el frame**.
+
+    El frame se toma tras la deriva del tick, pero el agente percibió antes de ella: lo que
+    guarda su KB es dónde podía estar cada recurso *al observar*. Para que la capa diga
+    dónde puede estar *ahora* —y la celda real caiga siempre dentro— se proyectan las
+    derivas pendientes (``OASysWorld.derivas`` menos las ya incorporadas) sin poda, que es
+    lo que hará la propia KB en su próxima observación antes de recortar por la visión.
+    Nada se muta: la región se expande en una copia y el filtro con ``propagado``.
+    """
+    kb = c.conocimiento
+    if isinstance(kb, BaseConocimiento):
+        vistas = kb._derivas
+        pendientes = 0 if (not kb.dinamico or vistas is None) else derivas - vistas
+        regiones = {
+            rid: tuple(
+                sorted(cell.coordinate for cell in expandir(r.celdas, pendientes, kb.vecinas))
+            )
+            for rid, r in kb.regiones.items()
+        }
+        return regiones, {}
+    if isinstance(kb, CreenciaBayesiana):
+        vistas = kb._derivas
+        pendientes = 0 if vistas is None else derivas - vistas
+        celdas = kb.malla.celdas
+        distribuciones = {}
+        for rid, filtro in kb.filtros.items():
+            p = filtro.propagado(kb.lam, pendientes)
+            distribuciones[rid] = tuple(
+                (celdas[j].coordinate, float(p[j])) for j in (p > 0).nonzero()[0]
+            )
+        return {}, distribuciones
+    return {}, {}
+
+
 def _capturar(
     modelo: OASysWorld, tick: int, accion: str, edicion: str | None, desde: int | None,
     interrumpida: bool,
@@ -215,6 +271,7 @@ def _capturar(
         for ln in c.book.lines
     )
     d = c.deliberation
+    regiones, distribuciones = _conocimiento(c, modelo.derivas)
     return Frame(
         tick=tick,
         agente=c.cell.coordinate,
@@ -241,6 +298,8 @@ def _capturar(
             "divergencias_detectadas": modelo.divergencias_detectadas,
             "carga_perdida": c.carga_perdida,
         },
+        regiones=regiones,
+        distribuciones=distribuciones,
     )
 
 
@@ -327,6 +386,56 @@ def _xy(coords: Any) -> tuple[list[float], list[float]]:
     return list(xs), list(ys)
 
 
+def _capa_region(ax: Any, f: Frame, modelo: OASysWorld) -> None:
+    """La región posible (KB) o el mapa de probabilidad (bayesiano), bajo todo lo demás.
+
+    - ``KNOWLEDGE_BASED``: la unión de las regiones, con alfa uniforme. Crece mientras un
+      recurso no está a la vista, el disco de visión le abre un hueco y colapsa a un punto
+      al volver a verlo.
+    - ``BAYESIAN``: cada filtro normalizado por su moda y, por celda, el máximo sobre los
+      recursos. Así el alfa dice qué tan plausible es la celda *para ese recurso*: uno
+      recién visto es una celda plena; uno perdido, una mancha que se difumina desde su
+      última celda. Normalizar por la moda evita que una distribución ancha desaparezca
+      frente a la celda de un recurso recién visto.
+
+    La entrada de leyenda se añade siempre para estas dos políticas, aunque no haya nada
+    que sombrear, para que la leyenda no salte entre frames.
+    """
+    from matplotlib.colors import to_rgb
+    from matplotlib.patches import Rectangle
+    import numpy as np
+
+    if modelo.policy is Policy.KNOWLEDGE_BASED:
+        etiqueta = "región posible"
+    elif modelo.policy is Policy.BAYESIAN:
+        etiqueta = "P(recurso)"
+    else:
+        return
+
+    masa = np.zeros(modelo.dimensions)
+    for coords in f.regiones.values():
+        for x, y in coords:
+            masa[x, y] = 1.0
+    for dist in f.distribuciones.values():
+        if not dist:
+            continue
+        moda = max(p for _, p in dist)
+        for (x, y), p in dist:
+            masa[x, y] = max(masa[x, y], p / moda)
+
+    if masa.any():
+        rgba = np.zeros((*masa.T.shape, 4))
+        rgba[..., :3] = to_rgb(C_REGION)
+        # La raíz realza las colas del filtro; con la región (todo 1) no cambia nada.
+        intensidad = np.sqrt(np.clip(masa.T, 0.0, 1.0))
+        rgba[..., 3] = ALFA_REGION * intensidad
+        ax.imshow(rgba, origin="lower", interpolation="nearest", zorder=1)
+    # Un rectángulo degenerado: no se ve, pero lleva la entrada de leyenda en todo frame.
+    ax.add_patch(
+        Rectangle((0, 0), 0, 0, facecolor=C_REGION, alpha=ALFA_REGION, label=etiqueta)
+    )
+
+
 def _panel_grid(ax: Any, frames: list[Frame], i: int, modelo: OASysWorld) -> None:
     """El mundo: obstáculos, visión, plan, creencia contra realidad."""
     import numpy as np
@@ -347,6 +456,8 @@ def _panel_grid(ax: Any, frames: list[Frame], i: int, modelo: OASysWorld) -> Non
             vmax=1.6,
             alpha=0.13,
         )
+
+    _capa_region(ax, f, modelo)
 
     traza = [g.agente for g in frames[: i + 1]]
     if len(traza) > 1:
@@ -703,6 +814,123 @@ def figura_estatica(
     return fig
 
 
+def _ticks(frames: list[Frame], pasos: Any = None, n: int = 6) -> list[int]:
+    """Índices de los frames que entran en la tira.
+
+    Por defecto, ``n`` índices equidistantes entre el primero y el último —la misma idea
+    que ``[0, 60, 120, 180, 240, 299]`` de la sesión C4—. Si se pasan ``pasos``, se usan
+    esos, recortados al rango de la corrida. En ambos casos el resultado va ordenado, sin
+    duplicados y con los dos extremos dentro: la tira tiene que mostrar dónde empieza y
+    dónde termina la película, o deja de contarla entera.
+
+    Args:
+        frames: salida de :func:`traza_corrida`.
+        pasos: índices pedidos a mano; se descartan duplicados y se recortan a
+            ``[0, len(frames) - 1]``.
+        n: cuántos índices equidistantes tomar cuando no hay ``pasos``.
+
+    Raises:
+        ValueError: si no hay frames o si ``n < 1``.
+    """
+    if not frames:
+        raise ValueError("no hay frames que mostrar")
+    ultimo = len(frames) - 1
+    if pasos is None:
+        if n < 1:
+            raise ValueError(f"n debe ser ≥ 1, no {n}")
+        if n == 1 or ultimo == 0:
+            elegidos = {0, ultimo}
+        else:
+            elegidos = {round(k * ultimo / (n - 1)) for k in range(n)}
+    else:
+        elegidos = {min(max(int(p), 0), ultimo) for p in pasos}
+    return sorted(elegidos | {0, ultimo})
+
+
+def figura_tira(
+    frames: list[Frame],
+    modelo: OASysWorld,
+    pasos: Any = None,
+    ncols: int = 6,
+    *,
+    alto: float = 3.1,
+    dpi: int = 110,
+) -> Any:
+    """La película en una sola figura: una fila de instantáneas del mundo.
+
+    Es el respaldo de la animación donde no corre JavaScript (PDF, GitHub, diapositivas).
+    Cada panel es el mismo :func:`_panel_grid` de la película, titulado solo con su tick;
+    si hay más instantáneas que ``ncols`` la tira se parte en varias filas. Las ediciones
+    se resaltan con :func:`_flashes` igual que en la película: un panel que cae dentro de
+    los :data:`FLASH` ticks posteriores a una reescritura lleva el marco verde (aplicada)
+    o rojo (rechazada). El resaltado se calcula sobre la corrida **entera** y no solo
+    sobre los ticks elegidos, porque una edición rara vez cae justo en uno de ellos.
+
+    Args:
+        frames: salida de :func:`traza_corrida`.
+        modelo: el modelo que los produjo.
+        pasos: índices de frame a mostrar; por defecto, seis equidistantes (:func:`_ticks`).
+        ncols: paneles por fila.
+        alto: alto en pulgadas de cada fila; el ancho sale de ``ncols``.
+        dpi: resolución.
+
+    Returns:
+        Una ``matplotlib.figure.Figure`` con un eje por instantánea.
+    """
+    import matplotlib.pyplot as plt
+    import seaborn as sns
+
+    indices = _ticks(frames, pasos, n=ncols)
+    flashes = _flashes(frames)
+    ncols = max(1, min(ncols, len(indices)))
+    nfilas = -(-len(indices) // ncols)
+
+    sns.set_theme(style="white", context="notebook")
+    fig = plt.figure(figsize=(alto * ncols, alto * nfilas + 0.9), dpi=dpi)
+    gs = fig.add_gridspec(nfilas, ncols, wspace=0.05, hspace=0.18)
+
+    for k, i in enumerate(indices):
+        ax = fig.add_subplot(gs[k // ncols, k % ncols])
+        _panel_grid(ax, frames, i, modelo)
+        leyenda = ax.get_legend()
+        if leyenda is not None:
+            leyenda.remove()
+
+        f = frames[i]
+        titulo = f"tick {f.tick}"
+        flash = flashes[i]
+        if flash is not None:
+            color = C_OK if flash[1] == "aplicada" else C_MAL
+            titulo += f"  ·  edición {flash[1]}"
+            for borde in ax.spines.values():
+                borde.set_visible(True)
+                borde.set_edgecolor(color)
+                borde.set_linewidth(2.4)
+        ax.set_title(titulo, fontsize=9.5, color="#222222" if flash is None else color)
+
+    # Una sola leyenda para toda la tira: repetirla en cada panel taparía el mundo.
+    manejadores, etiquetas = fig.axes[0].get_legend_handles_labels()
+    fig.legend(
+        manejadores,
+        etiquetas,
+        frameon=False,
+        fontsize=8,
+        ncol=len(etiquetas),
+        loc="lower center",
+        bbox_to_anchor=(0.5, 0.0),
+    )
+    ultimo = frames[-1]
+    r = "∞" if modelo.radio is None else modelo.radio
+    fig.suptitle(
+        f"{modelo.policy}  ·  λ = {modelo.lambda_dinamismo}  ·  c = {modelo.costo_edicion}"
+        f"  ·  r = {r}  —  {ultimo.metricas['entregas']:.0f} entregas, "
+        f"{ultimo.metricas['n_ediciones']:.0f} ediciones en {ultimo.tick} ticks",
+        fontsize=11,
+    )
+    fig.subplots_adjust(left=0.01, right=0.99, top=0.86 if nfilas == 1 else 0.92, bottom=0.1)
+    return fig
+
+
 # ------------------------------------------------------------------------ salidas
 
 
@@ -730,22 +958,25 @@ def a_jshtml(anim: Any) -> str:
 
 
 def mostrar(pasos: int = 80, modo: Modo | None = None, cada: int = 1, **kwargs: Any) -> Any:
-    """Lo que llama el cuaderno: una corrida, y según :data:`MODO` película o figura.
+    """Lo que llama el cuaderno: una corrida, y según :data:`MODO` película, figura o tira.
 
     La simulación se corre **una sola vez** para los dos modos, así que la figura
-    estática y la animación muestran exactamente la misma corrida.
+    estática, la tira y la animación muestran exactamente la misma corrida.
 
     Args:
         pasos: ticks a simular.
-        modo: ``"animacion"`` o ``"estatico"``; por defecto :data:`MODO`.
+        modo: ``"animacion"``, ``"estatico"`` o ``"tira"``; por defecto :data:`MODO`.
         cada: decimación de frames en la animación.
         **kwargs: parámetros de :class:`~project.model.OASysWorld`.
     """
     import matplotlib.pyplot as plt
 
     modelo, frames = traza_corrida(pasos=pasos, **kwargs)
-    if (modo or MODO) == "estatico":
+    elegido = modo or MODO
+    if elegido == "estatico":
         return figura_estatica(frames, modelo)
+    if elegido == "tira":
+        return figura_tira(frames, modelo)
 
     from IPython.display import HTML
 

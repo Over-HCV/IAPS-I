@@ -14,7 +14,7 @@ Siguiendo R&N §2.3.1, la especificación del entorno de tarea.
 |---|---|
 | **P** — Medida de rendimiento | Recursos entregados en la base antes de `T_max`, penalizado por el tiempo dedicado a deliberar. Formalizado en §4 |
 | **E** — Entorno | Retícula `N×N` de von Neumann con obstáculos fijos; `K` recursos que se desplazan y se reponen al entregarse; una base de entrega en posición fija |
-| **A** — Actuadores | `GOTO(celda)` un paso por tick; `PICK(recurso)`; `DELIVER()`; `DELIBERAR()` — que consume `c` ticks y produce un plan nuevo |
+| **A** — Actuadores | `GOTO(celda)` un paso por tick; `PICK(recurso)`; `DELIVER()`; `DELIBERAR()` — que consume `c` ticks y produce un plan nuevo —; y, solo para las dos políticas que infieren (§3.4), `ASK` a su KB o a su filtro, que cuesta `ticks_por_ask` ticks quieto (0 por defecto) |
 | **S** — Sensores | Contenido de las celdas dentro del radio `r` de la posición actual. Fuera de `r`, el agente solo tiene su creencia |
 
 **Sobre `DELIBERAR` como actuador:** es la decisión de diseño central. Deliberar no es un
@@ -32,20 +32,30 @@ la pregunta del trabajo se vuelve trivial.
 | Estático | **Dinámico** | Los recursos se mueven **mientras el agente delibera**. Esta es la propiedad que hace costosa la deliberación |
 | Discreto | **Discreto** | Retícula y ticks enteros |
 | Agentes | **Un agente** (multi-agente en extensión) | — |
-| Conocido | **Conocido** | Las reglas del entorno se conocen; lo que no se conoce es el *estado* |
+| Conocido | **Conocido** | Las reglas del entorno se conocen; lo que no se conoce es el *estado*. La excepción es `BAYESIAN`, que conoce la forma de la deriva pero no λ, y lo aprende mirando (§3.4) |
 
 El caso λ=0, r=∞ colapsa a un entorno estático y totalmente observable: ahí la planeación de
 lazo abierto es óptima por construcción, y sirve como control de sanidad del experimento.
+
+**El orden de activación es un parámetro, no un supuesto.** Por defecto el recolector actúa
+en cada tick antes de que los recursos deriven, y con `orden_aleatorio=True` el orden se
+sortea tick a tick con el generador del modelo (reproducible), de forma que entre dos
+observaciones del agente puede haber cero, una o dos derivas (el modelo las cuenta en
+`derivas`); el barrido `orden` (§5) comprueba que las conclusiones cualitativas no dependen
+de esa elección.
 
 ## 3. Arquitecturas de agente
 
 Todas las políticas comparten un mismo cuerpo de agente (`Collector` en `agents.py`), y lo
 único que cambia entre ellas es la enumeración `Policy`, es decir, cómo reacciona cada una a
-una divergencia entre el plan y el mundo. Entre las cuatro que planifican, además, la
+una divergencia entre el plan y el mundo. Entre las seis que planifican, además, la
 diferencia es solo **cuándo** invocan al replanificador, no cuánto les cuesta, pues todas lo
 pagan al mismo precio (§3.2). Las tres primeras siguen la taxonomía de R&N §2.4,
-que es el RAE #1 de la asignatura, mientras que las tres últimas extienden al agente basado
-en objetivos con las variantes de replanificación de §11.5.
+que es el RAE #1 de la asignatura; las tres siguientes extienden al agente basado en
+objetivos con las variantes de replanificación de §11.5; y las dos últimas, que se añadieron
+después del Avance 2 (`docs/roadmap-c4b.md` y `docs/roadmap-c5.md`), reparan en caliente
+como (5) pero antes de elegir objetivo y antes de pagar una reparación se preguntan qué saben
+de verdad, con lógica (R&N cap. 7) o con probabilidad (R&N cap. 14).
 
 | # | Política | Descripción | R&N | Cuándo aplica la edición |
 |---|---|---|---|---|
@@ -55,6 +65,8 @@ en objetivos con las variantes de replanificación de §11.5.
 | 4 | `COLD_RESTART` | Al detectar una divergencia (o al fallar el plan) delibera `c` ticks, y luego **suelta la carga** y arranca con el plan nuevo desde cero | lazo abierto con reinicio | En frío: en la ejecución siguiente, y el trabajo en curso se pierde |
 | 5 | `CLOSED_LOOP` | Monitorea, y al divergir repara el sufijo del plan en sitio pagando `c` ticks; si aun así el plan falla, replanifica igual que (3) | §11.5.3 planeación en línea | En caliente: sobre la ejecución en curso |
 | 6 | `GOVERNED` | Como (5), pero con un presupuesto de `B` reparaciones proactivas; agotado el presupuesto deja de reparar al divergir y se comporta exactamente como (3) | lazo cerrado con recursos acotados | En caliente, con presupuesto `B` |
+| 7 | `KNOWLEDGE_BASED` | Como (5), pero sus creencias son una base de conocimiento con fluentes y una región posible por recurso; elige objetivo por el peor caso sobre la región y ante una divergencia solo repara si la KB deduce que el plan es *inválido* | §7.7 agente basado en conocimiento, §4.4 estimación de estado | En caliente, heredada de (5), solo si el plan es inválido |
+| 8 | `BAYESIAN` | Como (7), con un filtro de probabilidad por recurso en vez de una región y λ aprendido en vez de dado; elige objetivo por costo esperado y repara por utilidad esperada | §14.2 filtrado, §16.1 utilidad esperada | En caliente, heredada de (5), solo si reparar cuesta menos en esperanza |
 
 **Alcance de edición, común a toda política que planifica.** Todo plan termina con un
 `DELIVER` marcado como bloqueado (`locked=True`), sea cual sea la política, de forma que la
@@ -117,7 +129,11 @@ que decide qué se paga es la siguiente.
 
 Las políticas difieren entonces solo en **cuándo** invocan al replanificador: `OPEN_LOOP` al
 fallar; `CLOSED_LOOP` y `GOVERNED` al detectar la divergencia (y también al fallar, si aun
-así ocurre); `COLD_RESTART` en los mismos momentos, pero reiniciando en frío.
+así ocurre); `COLD_RESTART` en los mismos momentos, pero reiniciando en frío; y
+`KNOWLEDGE_BASED` y `BAYESIAN` al detectar la divergencia solo si su consulta dice que el plan
+ya no sirve, y siempre al fallar. A estas dos últimas se les cobra además, si `ticks_por_ask >
+0`, cada consulta hecha en un evento de divergencia (§3.4), de forma que saber más no sale
+gratis por construcción.
 
 **Por qué esta regla y no otra.** Una versión anterior del modelo vaciaba el plan tras un
 fallo y lo reconstruía al tick siguiente con A\* exacto, sin oráculo y sin costo, de modo
@@ -156,6 +172,89 @@ del lazo abierto que §3.2 corrige, un lazo abierto que superaba también a los 
 Planificar compra previsión y vende oportunismo. Cuál de las dos vale más es una propiedad
 del entorno, no del agente — que es exactamente la tesis del capítulo 2 de R&N.
 
+### 3.4 Las dos políticas que infieren
+
+`KNOWLEDGE_BASED` y `BAYESIAN` **heredan la reparación en caliente de `CLOSED_LOOP`** (mismo
+monitoreo, mismo oráculo, mismo precio y misma replanificación forzada tras un fallo), y lo
+único que cambian es qué creencia consultan en tres momentos: al decidir qué recursos son
+candidatos, al elegir objetivo y, ante una divergencia, justo antes de pagar `c`. Cabe
+mencionar que su motivación salió de los propios datos, pues a λ=0.5 con `c=5` el lazo
+cerrado pasa la mayor parte de sus ticks deliberando, de forma que la pregunta es si un
+criterio más fino sobre *cuándo* reparar corta ese thrashing.
+
+**Qué sabe `KNOWLEDGE_BASED` (nivel de conocimiento, `conocimiento.py`).** Cada tick hace
+`TELL` de lo que ve como fluentes indexados por tiempo (`Visto(r,c,t)`, `¬En(r,c,t)` y
+`Recogido(r,t)`), y conoce como ley del mundo el axioma de deriva
+$En(r,c,t) \Rightarrow \bigvee_{c' \in N^+(c)} En(r,c',t+1)$, con $N^+(c)$ la celda y sus
+vecinas transitables; de λ solo sabe si es cero (entonces el axioma se instancia como «los
+recursos no se mueven»). Las observaciones nunca se retiran, de forma que la monotonía se
+conserva y lo que caduca es la conclusión «está ahí ahora», que pasa a derivarse. A nivel de
+implementación la región posible $R(r,t)$ (lo que DPLL no puede descartar) se mantiene con
+operaciones de conjuntos: al ver `r` en `c` se fija $R=\{c\}$ y en cada observación sin verlo
+se expande un paso por cada deriva ocurrida y se le restan las celdas vistas, con distancia
+geodésica. La equivalencia entre ambos niveles no se supone sino que se prueba contra DPLL de
+`logica.py` en una retícula de 4×4 (§9). Sus tres consultas `ASK` son:
+
+1. **¿Dónde puede estar `r` ahora?** Solo son candidatos los recursos cuya última celda
+   observada sigue en su región.
+2. **¿Qué recurso tengo asegurado?** El objetivo se elige por el peor caso,
+   $\max_{x \in R(r,t)} d(\text{agente}, x)$, con la misma distancia de Manhattan que el resto
+   de políticas, de forma que una creencia vieja, de región ancha, pierde frente a una
+   observación reciente algo más lejana; el destino del plan sigue siendo la última celda
+   observada, y lo único que cambia es el orden en que se persiguen los recursos.
+3. **¿Sigue siendo ejecutable mi plan?** La respuesta tiene tres valores y solo *inválido*
+   repara. Con `horizonte_validez="ahora"` el plan es inválido si la celda creída que el
+   monitoreo acaba de refutar ya no está en $R(r,t)$, que es exactamente el monitor de
+   `CLOSED_LOOP` leído a nivel de conocimiento; con `"llegada"` (el valor de los barridos),
+   si quedan `k` pasos antes del `PICK`, el plan es inválido solo si la celda del `PICK` cae
+   fuera de la expansión de `k` pasos de la región, es decir, si el recurso ya no puede estar
+   ahí cuando el agente llegue.
+
+**Qué sabe `BAYESIAN` (`filtro.py`).** El mismo conocimiento de fondo, salvo λ, que no recibe
+y aprende con un modelo Beta–Bernoulli (prior Beta(1,1); cada recurso cuya celda previa sigue
+a la vista es un ensayo: se movió o no), de modo que $\hat\lambda$ es la media posterior. Sobre
+la celda de cada recurso fuera de vista mantiene un filtro *forward* de rejilla (predicción
+con la caminata,
+$P'(x) = (1-\hat\lambda)P(x)[\deg x>0] + P(x)[\deg x=0] + \hat\lambda\sum_{y\sim x} P(y)/\deg y$,
+y corrección poniendo a cero las celdas vistas sin el recurso), cuyo soporte es exactamente la
+región de `KNOWLEDGE_BASED`. Sus dos decisiones son:
+
+1. **Objetivo por costo esperado** $d/q$, con $d$ la distancia de Manhattan a la última celda
+   observada y $q$ la probabilidad de que el recurso siga ahí al llegar (el filtro propagado
+   $d$ pasos).
+2. **Reparar por utilidad esperada:** con `k` pasos antes del `PICK` y $q$ la probabilidad de
+   encontrar el recurso en esa celda al llegar, repara si y solo si $c < (1-q)(c+k)$, pues
+   mantener cuesta en esperanza la caminata perdida más la replanificación forzada y reparar
+   cuesta `c` ya. Con `"ahora"` repara salvo que la celda refutada sea segura ($P=1$), y con
+   visión total eso reduce `BAYESIAN` a `CLOSED_LOOP`.
+
+**Equidad de costo.** El parámetro `ticks_por_ask` (0 por defecto) cobra en ticks quieto cada
+consulta 2 o 3 hecha en un evento de divergencia, y esos ticks suman a `pasos_deliberando`, de
+forma que entran en la utilidad neta igual que los del oráculo; la actualización de la región
+o del filtro es monitoreo por tick y queda gratuita, igual que `observar()` para toda política.
+Solo estas dos políticas leen `horizonte_validez` y `ticks_por_ask`, igual que solo `GOVERNED`
+lee el presupuesto, por lo que las filas de las demás políticas en los barridos nuevos
+reproducen exactamente las de los barridos originales (§9).
+
+**Desviaciones respecto al diseño previo.** Vale la pena anotar tres, todas descubiertas por
+los controles exactos. Primeramente, `"ahora"` compara contra la celda creída recién refutada y
+no contra la del `PICK`, pues la versión literal rompía la equivalencia con `CLOSED_LOOP` en
+28–29 de 30 semillas por desincronización entre plan y creencia; progresivamente, los ensayos
+de λ cuentan solo si la celda previa del recurso sigue a la vista, porque exigir verlo en los
+dos ticks sesgaba $\hat\lambda$ a la baja (0.38 con λ=0.5 y `r=1`: un recurso que sale del
+disco de visión es un movimiento que no se ve); finalmente, la creencia refutada se conserva y
+se notifica una sola vez, y la región y el filtro se expanden por el número real de derivas
+entre observaciones y no por una por tick, lo cual importa con el orden sorteado.
+
+**Límite honesto.** La contabilidad de costos de la regla $c < (1-q)(c+k)$ es incompleta en los
+dos lados: trata la reparación como si costara `c` y comprara certeza, cuando el plan reparado
+nace desactualizado (el mundo sigue moviéndose durante los `c` ticks) y una divergencia nueva
+puede interrumpirlo, y trata un plan mantenido que falla como si costara solo la caminata más
+`c`, sin el costo de buscar un objetivo que ya se perdió de vista. La primera omisión empuja a
+reparar de más y es la que muestran los datos (a λ=0.5 y `r=3`, 16.3 reparaciones proactivas
+contra 9.5 de `KNOWLEDGE_BASED`, y 145.8 ediciones desperdiciadas contra 97.4), de modo que es
+la causa medida de que `BAYESIAN` no supere a `KNOWLEDGE_BASED` (`info/00-rationale.md` §6).
+
 ## 4. Métricas
 
 Definiciones operacionales. Todas se recogen con `DataCollector` como *model reporters*.
@@ -174,6 +273,8 @@ Definiciones operacionales. Todas se recogen con `DataCollector` como *model rep
 | `divergencias_detectadas` | Subconjunto que el agente percibió. Se emparejan con las reales —una detección solo cuenta si hay una divergencia real pendiente— para que la cifra no pueda superar a la de reales y la ceguera quede acotada en `[0,1]` |
 | `ceguera` | `1 − detectadas/reales`. Fracción de divergencias que el agente nunca llegó a notar |
 | `latencia_deteccion` | Ticks entre que una divergencia ocurre y el agente la nota. **Es la medida útil del costo de la observabilidad parcial en este entorno** |
+| `n_consultas` | Consultas 2 y 3 a la KB o al filtro hechas en eventos de divergencia (§3.4); son las que cobra `ticks_por_ask`. Vale 0 para las políticas que no infieren |
+| `lambda_estimado` | $\hat\lambda$ de `BAYESIAN` al final de la corrida, la media posterior de su Beta–Bernoulli; `NaN` para el resto de políticas |
 
 Y la medida de rendimiento compuesta:
 
@@ -195,15 +296,18 @@ queda sin medir.
 
 | Símbolo | Nombre en código | Valores en los barridos | Significado |
 |---|---|---|---|
-| — | `policy` | las 6 de §3 | Arquitectura de agente |
+| — | `policy` | las 8 de §3 (las seis originales en los siete barridos originales) | Arquitectura de agente |
 | λ | `lambda_dinamismo` | `0, 0.05, 0.1, 0.25, 0.5` | Prob. por tick de que un recurso se mueva |
 | `p` | `competencia` | `0.5, 0.7, 0.9, 1.0` | Prob. de que la edición del oráculo sea correcta |
 | `c` | `costo_edicion` | `0, 2, 5, 10` | Ticks que consume deliberar |
 | `r` | `radio` | `1, 3, None` (`None` = ∞) | Radio de visión (observabilidad parcial) |
 | `B` | `presupuesto` | `None` (∞), y `0, 3, 5, 10, 25` en el barrido de gobernanza | Reparaciones proactivas permitidas (solo `GOVERNED`); las forzadas por un fallo no cuentan |
+| — | `orden_aleatorio` | `False`, y `True` en el barrido `orden` | Sortear cada tick si el recolector actúa antes o después de la deriva (§2) |
+| — | `horizonte_validez` | `"llegada"`, y `"ahora"` en `conocimiento_ahora` | Cuándo debe seguir siendo posible el plan para no repararlo (solo `KNOWLEDGE_BASED` y `BAYESIAN`, §3.4) |
+| — | `ticks_por_ask` | `0`, y `1, 2, 5` en `conocimiento_costo` | Ticks quieto que cuesta cada consulta en un evento de divergencia (solo las dos políticas que infieren) |
 | `κ` | `kappa` | `0` | Precio por tick de deliberación |
 | `N` | `size` | `15` | Lado de la retícula (fijo) |
-| `K` | `n_resources` | `8` | Recursos simultáneos (fijo) |
+| `K` | `n_resources` | `8`, y `2, 4, 8, 16` en los barridos de escasez | Recursos simultáneos |
 | — | `capacidad` | `3` | Recursos a reunir antes de entregar. Es lo que crea *trabajo en curso*: sin él, un reinicio en frío no pierde nada y la comparación entre frío y caliente se vacía |
 | — | `densidad_obstaculos` | `0.15` | Fracción de celdas bloqueadas |
 | ε | `epsilon_reflejo` | `0.15` | Movimiento aleatorio de las políticas reactivas, para escapar de mínimos locales (R&N §2.4.2) |
@@ -218,7 +322,10 @@ Réplicas: **30** por combinación, con semillas `0…29` que se pasan por el ar
 `batch_run` (nunca dentro de `parameters`, donde se sobrescribirían en silencio).
 
 El barrido completo es grande, así que se ejecuta por etapas, cada una guardada en
-`results/<nombre>.csv`, y entre todas suman **8.640 corridas**:
+`results/<nombre>.csv`, y entre todas suman **16.260 corridas** en trece barridos. Los siete
+primeros son los originales y quedaron congelados a las seis políticas originales (las listas
+de políticas se fijan a mano en `experiments.py` y no se derivan del enum, para que añadir una
+política no cambie en silencio la definición de un barrido ya guardado):
 
 1. **`principal`:** `policy × λ × c`, con `p=0.9` y `r=3`. Es la figura principal (la
    frontera de fase) y son 6 × 5 × 4 × 30 = 3.600 corridas.
@@ -230,6 +337,35 @@ El barrido completo es grande, así que se ejecuta por etapas, cada una guardada
    25}, con `p=0.9`, `c=5` y `r=3` (900 corridas).
 5. **`control2`, `control3` y `control4`:** las combinaciones que exigen los controles de
    sanidad 2, 3 y 6 de §9, que ningún otro barrido fija (300, 120 y 360 corridas).
+
+Los seis siguientes salen de las extensiones posteriores al Avance 2
+(`docs/roadmap-c4.md`, `roadmap-c4b.md` y `roadmap-c5.md`), todos con `p=0.9` salvo que se diga:
+
+6. **`orden`:** `MODEL_BASED`, `OPEN_LOOP`, `COLD_RESTART` y `CLOSED_LOOP` × λ ∈ {0.1, 0.25,
+   0.5} × `c` ∈ {2, 5}, con `r=3` y `orden_aleatorio=True` (720 corridas). Es el subconjunto de
+   `principal` con el orden de activación sorteado, y lo que se compara es el signo de las
+   diferencias que sostienen las conclusiones.
+7. **`conocimiento`:** `MODEL_BASED`, `OPEN_LOOP`, `CLOSED_LOOP`, `KNOWLEDGE_BASED` y
+   `BAYESIAN` × λ ∈ {0, 0.1, 0.25, 0.5} × `r` ∈ {1, 3, ∞}, con `c=5` y horizonte `"llegada"`
+   (1.800 corridas). `MODEL_BASED` entra porque es la vara más exigente con λ alto.
+8. **`conocimiento_ahora`:** las dos políticas que infieren con horizonte `"ahora"` × λ × `r`
+   (720 corridas). Es la ablación que aísla la elección de objetivo del criterio de reparación
+   y, con `r=∞`, los controles exactos H2 y HB2 de §9.
+9. **`conocimiento_costo`:** las dos políticas que infieren × λ ∈ {0.1, 0.25, 0.5} ×
+   `ticks_por_ask` ∈ {1, 2, 5}, con `r=3` y `c=5` (540 corridas). Mide desde qué costo de
+   preguntar deja de compensar saber más.
+10. **`escasez`:** `MODEL_BASED`, `OPEN_LOOP`, `COLD_RESTART`, `CLOSED_LOOP` y
+    `KNOWLEDGE_BASED` × `n_resources` ∈ {2, 4, 8, 16} × λ ∈ {0, 0.1, 0.25, 0.5}, con `r=3` y
+    `c=5` (2.400 corridas), que es el régimen mixto.
+11. **`escasez_inf`:** `OPEN_LOOP`, `COLD_RESTART` y `CLOSED_LOOP` × `n_resources` × λ en el
+    régimen del control 2 (`c=0`, `p=1`, `r=∞`; 1.440 corridas), donde replanificar gana.
+
+Aparte de los CSV, `results/dinamica.parquet` guarda la serie temporal decimada cada 5 ticks
+de 600 corridas (cinco políticas sin `GOVERNED` × λ ∈ {0, 0.1, 0.25, 0.5} × 30 semillas, con
+`c=5` y `r=3`), y `results/abc.parquet` la tabla de referencia de la calibración ABC
+(3.000 muestras de (λ, p), de dos semillas cada una, tomadas de un prior uniforme λ ∈ [0, 0.8], `p` ∈ [0.5, 1], simuladas con
+`OPEN_LOOP`, `c=5` y `r=3`), que no son barridos de `batch_run` sobre una rejilla sino
+simulaciones para inferir los parámetros de un despliegue.
 
 ## 6. Estructura del plan
 
@@ -358,6 +494,36 @@ Antes de creer cualquier resultado del barrido:
    replanificar al fallar al mismo precio que el lazo abierto (§3.2); cualquier diferencia
    delata que la regla de costo o la gobernanza se aplican distinto a las dos políticas.
 
+Con las dos políticas que infieren y los barridos de las extensiones entraron cinco
+controles más, todos exactos salvo el de orden:
+
+7. **H2:** con `r=∞` y horizonte `"ahora"`, `KNOWLEDGE_BASED` debe igualar a `CLOSED_LOOP`
+   semilla a semilla, incluidas las replanificaciones por fallo, porque la región de cada
+   recurso es un punto en cada decisión y la consulta 3 reproduce el monitor; con λ=0 la
+   igualdad vale en todo radio.
+8. **HB2:** con `r=∞` y `"ahora"`, `BAYESIAN` debe igualar a `CLOSED_LOOP` semilla a semilla.
+9. **Solidez y soporte:** en corridas con λ>0 y `r` finito, la celda real de cada recurso
+   rastreado está siempre en su región posible (y tiene probabilidad positiva en el filtro), el
+   soporte del filtro coincide con la región de `KNOWLEDGE_BASED` en cada tick, y en una
+   retícula de 4×4 DPLL responde `falso` exactamente fuera de la región y `desconocido`
+   dentro, que es la prueba de que el nivel de implementación por conjuntos equivale al nivel
+   de conocimiento. El motor lógico se prueba además por su cuenta (las oraciones R1–R5 de
+   R&N, `tt_entails` frente a DPLL en 100 oraciones, CNF equivalente y una cadena de 40
+   implicaciones en menos de un segundo).
+10. **Regresión de los barridos nuevos:** las filas que repiten una configuración ya corrida
+    deben reproducirla exactamente, y lo hacen: `OPEN_LOOP` y `CLOSED_LOOP` de
+    `conocimiento` frente a `observabilidad.csv` (0 de 720 distintas), `MODEL_BASED` con `r=3`
+    frente a `principal.csv` (0 de 120), y la celda `n_resources=8` de `escasez` y
+    `escasez_inf` frente a `principal.csv`, `conocimiento.csv` y `control2.csv`. Re-ejecutar
+    corridas originales con el código actual da también lo mismo que `principal.csv`, de forma
+    que añadir las dos políticas no cambió a las seis originales.
+11. **Robustez al orden de activación** (no exacto, por signo): con el orden sorteado, la
+    diferencia entre reparar en caliente y en frío conserva el signo en cinco de seis celdas
+    (la excepción es λ=0.5 con `c=5`, donde ambas colapsan) y la ventaja de no planificar con
+    λ alto también, mientras que la diferencia entre lazo abierto y cerrado cambia de signo en
+    tres de seis, lo cual es consistente con que casi empaten.
+
 Los controles 1 a 3 y el 6 se evalúan sobre los CSV con `uv run python -m project.analysis
---controles` (y en el cuaderno, §3), mientras que el 4 y el 5 son propiedades del código y
-viven como pruebas en `tests/`.
+--controles` (y en el cuaderno, §3), el 11 con `analysis.robustez_orden()`, mientras que el 4,
+el 5 y los del 7 al 10 son propiedades del código o de los CSV guardados y viven como pruebas
+en `tests/` (`test_conocimiento.py`, `test_filtro.py`, `test_logica.py` y `test_escasez.py`).

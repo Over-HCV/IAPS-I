@@ -814,3 +814,6 @@ build/
 !learn/app/data/
 learn/app/data/*
 !learn/app/data/.gitkeep
+
+# Resultados del proyecto que lee el cuaderno (pequeños, se versionan)
+!project/results/*.parquet

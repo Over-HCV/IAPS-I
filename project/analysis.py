@@ -3,13 +3,18 @@
 Este módulo es la capa que faltaba entre ``results/*.csv`` y una conclusión legible. Se
 divide en dos partes deliberadamente separadas:
 
-- **datos** — :func:`cargar`, :func:`agregar`, :func:`delta_hot_vs_cold` y
-  :func:`controles` devuelven ``DataFrame``\\ s y no saben nada de gráficas;
+- **datos** — :func:`cargar`, :func:`agregar`, :func:`cargar_dinamica`,
+  :func:`agregar_tiempo`, :func:`delta_hot_vs_cold`, :func:`robustez_orden`,
+  :func:`diferencia_pareada` y :func:`controles` devuelven ``DataFrame``\\ s y no saben
+  nada de gráficas;
 - **dibujo** — :func:`lineas` recibe uno de esos ``DataFrame``\\ s en formato largo y lo
   pinta con el backend activo.
 
-Las cinco figuras del trabajo son el mismo objeto gráfico (líneas por serie, banda de
-error, facetas en rejilla), así que el backend se cambia en un solo sitio::
+Casi todas las figuras de barrido (frontera, caliente contra frío, competencia,
+observabilidad, gobernanza, dinámica y conocimiento) son el mismo objeto gráfico (líneas por
+serie, banda de error, facetas en rejilla), así que el backend se cambia en un solo sitio
+(:func:`fig_calibracion` y :func:`fig_escasez` arman su rejilla a mano y son solo de
+matplotlib)::
 
     analysis.BACKEND = "plotly"          # global
     analysis.fig_frontera(backend="mpl") # o por llamada
@@ -105,6 +110,75 @@ def agregar(
     return out[["x", "y", "err", "serie", "faceta"]].sort_values(
         ["faceta", "serie", "x"]
     )
+
+
+def cargar_dinamica() -> pd.DataFrame:
+    """Leer ``results/dinamica.parquet`` (series temporales, paquete 3 de C4).
+
+    Raises:
+        FileNotFoundError: con el comando exacto que genera el archivo, igual que
+            :func:`cargar`.
+    """
+    ruta = RESULTS / "dinamica.parquet"
+    if not ruta.exists():
+        raise FileNotFoundError(
+            f"no existe {ruta}. Generarlo con:\n"
+            f"    uv run python -m project.experiments --dinamica --procesos 0"
+        )
+    return pd.read_parquet(ruta)
+
+
+def agregar_tiempo(
+    df: pd.DataFrame,
+    metrica: str = "entregas",
+    *,
+    serie: str = "politica",
+    faceta: str | None = "lambda_dinamismo",
+) -> pd.DataFrame:
+    """Media y error estándar de una métrica **por tick**, sobre las semillas.
+
+    Es :func:`agregar` con ``x="tick"``: devuelve el mismo formato largo, de modo que la
+    misma primitiva :func:`lineas` dibuja la curva temporal.
+    """
+    return agregar(df, x="tick", metrica=metrica, serie=serie, faceta=faceta)
+
+
+def robustez_orden() -> pd.DataFrame:
+    """Paquete 1 de C4: ¿cambia algún signo al sortear el orden de activación?
+
+    Compara, celda a celda (λ, c), las tres diferencias que sostienen las conclusiones
+    —reparar en caliente contra en frío (``CLOSED_LOOP − COLD_RESTART``), lazo abierto
+    contra cerrado (``OPEN_LOOP − CLOSED_LOOP``) y no planificar contra la mejor política
+    con plan (``MODEL_BASED − max``)— entre ``principal`` (orden fijo) y ``orden``
+    (orden sorteado por tick).
+    """
+    fijo = cargar("principal")
+    sorteo = cargar("orden")
+    claves = ["lambda_dinamismo", "costo_edicion"]
+    fijo = fijo[
+        fijo.lambda_dinamismo.isin(sorteo.lambda_dinamismo.unique())
+        & fijo.costo_edicion.isin(sorteo.costo_edicion.unique())
+    ]
+    filas = []
+    for nombre, df in (("fijo", fijo), ("sorteado", sorteo)):
+        m = df.groupby([*claves, "politica"])["utilidad_neta"].mean().unstack("politica")
+        con_plan = m[[str(Policy.OPEN_LOOP), str(Policy.COLD_RESTART), str(Policy.CLOSED_LOOP)]]
+        d = pd.DataFrame(
+            {
+                "caliente_menos_frio": m[str(Policy.CLOSED_LOOP)] - m[str(Policy.COLD_RESTART)],
+                "abierto_menos_cerrado": m[str(Policy.OPEN_LOOP)] - m[str(Policy.CLOSED_LOOP)],
+                "modelo_menos_mejor_plan": m[str(Policy.MODEL_BASED)] - con_plan.max(axis=1),
+            }
+        )
+        d["orden"] = nombre
+        filas.append(d.reset_index())
+    largo = pd.concat(filas)
+    ancho = largo.pivot_table(index=claves, columns="orden").round(1)
+    for col in ("caliente_menos_frio", "abierto_menos_cerrado", "modelo_menos_mejor_plan"):
+        ancho[(col, "mismo_signo")] = (
+            (ancho[(col, "fijo")] > 0) == (ancho[(col, "sorteado")] > 0)
+        )
+    return ancho.sort_index(axis=1)
 
 
 def delta_hot_vs_cold(df: pd.DataFrame | None = None) -> pd.DataFrame:
@@ -271,7 +345,13 @@ def _facetas(tidy: pd.DataFrame) -> list[str]:
 
 
 def _lineas_mpl(
-    tidy: pd.DataFrame, *, titulo: str, xlab: str, ylab: str, faceta_lab: str
+    tidy: pd.DataFrame,
+    *,
+    titulo: str,
+    xlab: str,
+    ylab: str,
+    faceta_lab: str,
+    marcadores: bool = True,
 ) -> Any:
     """Backend matplotlib + seaborn. Figuras estáticas para el documento."""
     import matplotlib.pyplot as plt
@@ -292,7 +372,14 @@ def _lineas_mpl(
             d = panel[panel["serie"] == s]
             if d.empty:
                 continue
-            ax.plot(d["x"], d["y"], marker="o", ms=4, label=str(s), color=colores[s])
+            ax.plot(
+                d["x"],
+                d["y"],
+                marker="o" if marcadores else None,
+                ms=4,
+                label=str(s),
+                color=colores[s],
+            )
             ax.fill_between(
                 d["x"], d["y"] - d["err"], d["y"] + d["err"], alpha=0.15, color=colores[s]
             )
@@ -307,7 +394,13 @@ def _lineas_mpl(
 
 
 def _lineas_plotly(
-    tidy: pd.DataFrame, *, titulo: str, xlab: str, ylab: str, faceta_lab: str
+    tidy: pd.DataFrame,
+    *,
+    titulo: str,
+    xlab: str,
+    ylab: str,
+    faceta_lab: str,
+    marcadores: bool = True,
 ) -> Any:
     """Backend plotly. Mismo dato, interactivo, para explorar en el notebook."""
     import plotly.express as px
@@ -322,7 +415,7 @@ def _lineas_plotly(
         error_y="err",
         color="serie",
         facet_col=None if una else "faceta",
-        markers=True,
+        markers=marcadores,
         category_orders={"serie": [str(s) for s in ORDEN_POLITICAS]},
         labels={"x": xlab, "y": ylab, "serie": ""},
         title=titulo,
@@ -342,10 +435,18 @@ def lineas(
     ylab: str,
     faceta_lab: str = "",
     backend: Backend | None = None,
+    marcadores: bool = True,
 ) -> Any:
     """Pintar un ``DataFrame`` de :func:`agregar` con el backend activo."""
     fn = _lineas_mpl if (backend or BACKEND) == "mpl" else _lineas_plotly
-    return fn(tidy, titulo=titulo, xlab=xlab, ylab=ylab, faceta_lab=faceta_lab)
+    return fn(
+        tidy,
+        titulo=titulo,
+        xlab=xlab,
+        ylab=ylab,
+        faceta_lab=faceta_lab,
+        marcadores=marcadores,
+    )
 
 
 def guardar(fig: Any, ruta: Path) -> Path:
@@ -447,6 +548,21 @@ def fig_gobernanza(
     )
 
 
+def fig_dinamica(
+    metrica: str = "entregas", backend: Backend | None = None
+) -> Any:
+    """Paquete 3 de C4: *cuándo* se separan las políticas, no solo cuánto."""
+    return lineas(
+        agregar_tiempo(cargar_dinamica(), metrica),
+        titulo=f"Dinámica: {metrica.replace('_', ' ')} acumulada por tick (c=5, r=3)",
+        xlab="tick",
+        ylab=metrica.replace("_", " "),
+        faceta_lab="λ",
+        backend=backend,
+        marcadores=False,
+    )
+
+
 def fig_trayectoria(pasos: int = 120, backend: Backend | None = None, **kwargs: Any) -> Any:
     """Una corrida concreta, para ver el mecanismo antes de mirar agregados.
 
@@ -489,12 +605,263 @@ def fig_trayectoria(pasos: int = 120, backend: Backend | None = None, **kwargs: 
     return fig
 
 
+# ------------------------------------------------- KB-2 y C5-B: conocimiento
+
+
+def diferencia_pareada(
+    df: pd.DataFrame,
+    a: str,
+    b: str,
+    *,
+    por: tuple[str, ...] = ("lambda_dinamismo", "radio"),
+    metrica: str = "utilidad_neta",
+) -> pd.DataFrame:
+    """Diferencia ``a − b`` emparejada por semilla, con su error estándar.
+
+    Es la comparación que piden las hipótesis de KB-2 y C5-B («por pares de semilla»):
+    las dos políticas corren sobre el mismo mundo, así que la varianza entre mundos se
+    cancela y queda solo la de la diferencia.
+
+    Args:
+        df: crudo, una fila por corrida, con ``politica`` y ``rng``.
+        a: política (o etiqueta en ``politica``) del minuendo.
+        b: política del sustraendo.
+        por: columnas que separan las celdas del barrido.
+        metrica: columna a comparar.
+
+    Returns:
+        Una fila por celda con ``media``, ``err``, ``n`` y ``t`` (= media / err).
+    """
+    claves = [*por, "rng"]
+    ancho = df[df.politica.isin([a, b])].pivot_table(
+        index=claves, columns="politica", values=metrica
+    )
+    d = (ancho[a] - ancho[b]).dropna().rename("d").reset_index()
+    out = d.groupby(list(por))["d"].agg(["mean", "std", "count"])
+    out["err"] = out["std"] / out["count"] ** 0.5
+    out["t"] = out["mean"] / out["err"].replace(0, float("nan"))
+    return out.rename(columns={"mean": "media", "count": "n"})[
+        ["media", "err", "n", "t"]
+    ].reset_index()
+
+
+def fig_conocimiento(
+    metrica: str = "utilidad_neta", backend: Backend | None = None
+) -> Any:
+    """KB-2 y C5-B: ¿compensa saber qué se sabe, frente a no planificar y a reparar siempre?"""
+    df = cargar("conocimiento")
+    return lineas(
+        agregar(df, x="lambda_dinamismo", metrica=metrica, faceta="radio"),
+        titulo=(
+            f"Conocimiento: {metrica.replace('_', ' ')} por dinamismo y radio de visión "
+            "(c=5, horizonte «llegada»)"
+        ),
+        xlab="λ (dinamismo)",
+        ylab=metrica.replace("_", " "),
+        faceta_lab="r",
+        backend=backend,
+    )
+
+
+def datos_calibracion(
+    *,
+    semillas: Any = range(6),
+    lambda_dinamismo: float = 0.25,
+    radio: int = 3,
+    pasos: int = 300,
+    bins: int = 10,
+    policy: str = "CLOSED_LOOP",
+) -> pd.DataFrame:
+    """HB5 de C5-B: diagrama de fiabilidad del filtro cuando conoce el λ verdadero.
+
+    Se corre el modelo y, justo después de cada observación del recolector, un filtro de
+    prueba con λ conocido (``CreenciaBayesiana(lam_fijo=λ)``, que la política nunca usa)
+    incorpora esa misma observación. Por cada recurso rastreado y fuera de la vista, y
+    cada celda fuera de la vista con probabilidad positiva, se anota la probabilidad
+    asignada y si el recurso estaba de verdad ahí. Si el filtro está calibrado, en cada
+    bin la frecuencia observada coincide con la probabilidad media del bin.
+
+    Returns:
+        Una fila por bin no vacío con ``p_media``, ``frecuencia``, ``n`` y ``err`` (error
+        estándar binomial, que ignora la correlación entre celdas del mismo tick).
+    """
+    import numpy as np
+    from project.filtro import CreenciaBayesiana, MallaFiltro
+    from project.model import OASysWorld
+
+    preds: list[Any] = []
+    aciertos: list[Any] = []
+    for s in semillas:
+        m = OASysWorld(
+            policy=policy,
+            size=15,
+            n_resources=8,
+            densidad_obstaculos=0.15,
+            lambda_dinamismo=lambda_dinamismo,
+            radio=radio,
+            max_steps=pasos,
+            rng=s,
+        )
+        if len(m.libres) < 2:
+            continue
+        c = m.collector
+        cre = CreenciaBayesiana(MallaFiltro(m.libres), lam_fijo=lambda_dinamismo)
+        original = c.observar
+
+        def observar(
+            original: Any = original, m: Any = m, c: Any = c, cre: Any = cre
+        ) -> None:
+            original()
+            reales = {r.rid: r.cell for r in m.recursos()}
+            for rid in [r for r in cre.filtros if r not in reales]:
+                cre.recoger(rid, m.steps)
+            visibles = c._vision()
+            vis = set(visibles)
+            vistos = {rid: cell for rid, cell in reales.items() if cell in vis}
+            cre.percibir(vistos, visibles, derivas=m.derivas, t=m.steps)
+            fuera = np.ones(len(cre.malla), dtype=bool)
+            fuera[cre.malla.indices(vis)] = False
+            for rid, filtro in cre.filtros.items():
+                if rid in vistos:
+                    continue
+                mascara = fuera & (filtro.p > 0)
+                real = np.zeros(len(cre.malla), dtype=bool)
+                real[cre.malla.indice[reales[rid]]] = True
+                preds.append(filtro.p[mascara])
+                aciertos.append(real[mascara])
+
+        c.observar = observar
+        m.run_model()
+
+    p = np.concatenate(preds) if preds else np.empty(0)
+    y = np.concatenate(aciertos) if aciertos else np.empty(0, dtype=bool)
+    b = np.minimum((p * bins).astype(int), bins - 1)
+    df = pd.DataFrame({"bin": b, "p": p, "y": y.astype(float)})
+    out = df.groupby("bin").agg(
+        p_media=("p", "mean"), frecuencia=("y", "mean"), n=("y", "size")
+    )
+    out["err"] = (out["frecuencia"] * (1 - out["frecuencia"]) / out["n"]) ** 0.5
+    return out.reset_index()
+
+
+def fig_calibracion(backend: Backend | None = None, **kwargs: Any) -> Any:
+    """HB5: ¿dice la verdad el filtro cuando dice «probabilidad x»?
+
+    Solo dibuja con matplotlib (es un diagrama de fiabilidad, no una serie de
+    :func:`lineas`); con ``backend="plotly"`` devuelve igualmente la figura de matplotlib
+    para que ``--figuras`` no se interrumpa. Corre una simulación pequeña cada vez
+    (``kwargs`` van a :func:`datos_calibracion`).
+    """
+    import matplotlib.pyplot as plt
+    import seaborn as sns
+
+    d = datos_calibracion(**kwargs)
+    sns.set_theme(style="whitegrid", context="notebook")
+    fig, (ax, ax_n) = plt.subplots(
+        1, 2, figsize=(9.5, 4.2), gridspec_kw={"width_ratios": [1.4, 1]}
+    )
+    ax.plot([0, 1], [0, 1], ls="--", color="grey", lw=1, label="calibración perfecta")
+    ax.errorbar(
+        d["p_media"],
+        d["frecuencia"],
+        yerr=d["err"],
+        fmt="o-",
+        ms=5,
+        capsize=3,
+        color="tab:blue",
+        label="filtro (λ conocido)",
+    )
+    ax.set_xlim(0, 1)
+    ax.set_ylim(0, 1)
+    ax.set_xlabel("probabilidad asignada (media del bin)")
+    ax.set_ylabel("frecuencia observada")
+    ax.legend(frameon=False, fontsize=8, loc="upper left")
+    ax_n.bar(d["bin"], d["n"], color="tab:blue", alpha=0.6)
+    ax_n.set_yscale("log")
+    ax_n.set_xlabel("bin de probabilidad")
+    ax_n.set_ylabel("celdas evaluadas")
+    fig.suptitle("Calibración del filtro de rejilla (HB5)", fontsize=12, y=1.02)
+    fig.tight_layout()
+    return fig
+
+
+# --------------------------------------------------- paquete 4 de C4: escasez
+
+REGIMENES_ESCASEZ: dict[str, str] = {
+    "escasez": "mixto (r=3, c=5, p=0.9)",
+    "escasez_inf": "replanificar gana (r=∞, c=0, p=1)",
+}
+"""Los dos barridos de escasez y la etiqueta de cada fila de :func:`fig_escasez`."""
+
+
+def fig_escasez(metrica: str = "utilidad_neta", backend: Backend | None = None) -> Any:
+    """Paquete 4 de C4: ¿depende el valor de replanificar de la abundancia de recursos?
+
+    Una fila por régimen y una columna por λ, con ``n_resources`` en el eje horizontal.
+    :func:`lineas` dibuja una sola fila, así que aquí se arma la rejilla a mano con el
+    mismo estilo que :func:`_lineas_mpl`. El eje y se comparte dentro de cada fila, no
+    entre filas: los dos regímenes viven en escalas distintas. ``backend`` se acepta por
+    uniformidad con ``FIGURAS_CLI``; la figura es siempre de matplotlib.
+    """
+    del backend
+    import matplotlib.pyplot as plt
+    import seaborn as sns
+
+    sns.set_theme(style="whitegrid", context="notebook")
+    tidys = {
+        nombre: agregar(
+            cargar(nombre), x="n_resources", metrica=metrica, faceta="lambda_dinamismo"
+        )
+        for nombre in REGIMENES_ESCASEZ
+    }
+    facetas = _facetas(tidys["escasez"])
+    n = len(facetas)
+    fig, axes = plt.subplots(
+        len(tidys), n, figsize=(4.2 * n + 1.2, 3.8 * len(tidys)), sharey="row",
+        squeeze=False,
+    )
+    series = [
+        s
+        for s in ORDEN_POLITICAS
+        if any((t["serie"] == s).any() for t in tidys.values())
+    ]
+    colores = dict(zip(series, sns.color_palette("colorblind", len(series)), strict=True))
+    ylab = metrica.replace("_", " ")
+
+    for fila, (nombre, tidy) in zip(axes, tidys.items(), strict=True):
+        for ax, f in zip(fila, facetas, strict=True):
+            panel = tidy[tidy["faceta"] == f]
+            for s in series:
+                d = panel[panel["serie"] == s]
+                if d.empty:
+                    continue
+                ax.plot(d["x"], d["y"], marker="o", ms=4, label=s, color=colores[s])
+                ax.fill_between(
+                    d["x"], d["y"] - d["err"], d["y"] + d["err"], alpha=0.15,
+                    color=colores[s],
+                )
+            ax.set_xscale("log", base=2)
+            ax.set_xticks([2, 4, 8, 16], ["2", "4", "8", "16"])
+            ax.set_xlabel("n_resources")
+            ax.set_title(f"λ = {f}", fontsize=10)
+        fila[0].set_ylabel(f"{REGIMENES_ESCASEZ[nombre]}\n{ylab}", fontsize=9)
+        fila[-1].legend(frameon=False, fontsize=8, loc="best")
+    fig.suptitle(
+        f"Escasez: {ylab} por número de recursos, dinamismo y régimen", fontsize=12, y=1.01
+    )
+    fig.tight_layout()
+    return fig
+
+
 FIGURAS_CLI: dict[str, Any] = {
     "01-frontera": fig_frontera,
     "02-hot-vs-cold": fig_hot_vs_cold,
     "03-competencia": fig_competencia,
     "04-observabilidad": fig_observabilidad,
     "05-gobernanza": fig_gobernanza,
+    "06-conocimiento": fig_conocimiento,
+    "07-fiabilidad-filtro": fig_calibracion,
+    "11-escasez": fig_escasez,
 }
 
 

@@ -1,0 +1,11 @@
+# Sin consigna oficial todavía: todo en 0 = sin límite (conteo informativo).
+00-resumen.tex:0
+01-introduccion.tex:0
+02-marco.tex:0
+03-modelo.tex:0
+04-diseno.tex:0
+05-resultados.tex:0
+06-avance2.tex:0
+07-discusion.tex:0
+08-limites.tex:0
+09-conclusiones.tex:0

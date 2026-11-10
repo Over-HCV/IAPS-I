@@ -1,11 +1,14 @@
-"""Las seis arquitecturas de agente.
+"""Las ocho arquitecturas de agente.
 
 Las tres primeras recorren la taxonomía de Russell & Norvig §2.4 (reflejo simple, reflejo
 basado en modelo, basado en objetivos), que es el primer resultado de aprendizaje de la
-asignatura. Las tres últimas replanifican al divergir y difieren en cuándo aplica la
+asignatura. Las tres siguientes replanifican al divergir y difieren en cuándo aplica la
 reparación: **en frío** (en la ejecución siguiente, y el trabajo en curso se pierde), **en
 caliente** (en sitio, sobre la ejecución en curso) o en caliente con un presupuesto de
-ediciones.
+ediciones. Las dos últimas reparan en caliente como ``CLOSED_LOOP``, pero antes de elegir
+objetivo y antes de pagar una reparación se preguntan qué saben de verdad: con lógica
+(``KNOWLEDGE_BASED``, R&N cap. 7, :mod:`project.conocimiento`) o con probabilidad
+(``BAYESIAN``, R&N cap. 14, :mod:`project.filtro`).
 
 Tres decisiones de fidelidad importantes.
 
@@ -37,11 +40,14 @@ vuelo lo que hace caro reiniciar, y hace falta que exista.
 from __future__ import annotations
 
 from enum import StrEnum
+import math
 from typing import Any
 
 from mesa.discrete_space import CellAgent
 from project.book import Book, EditRejected, Line, LineOp, goto_lines
+from project.conocimiento import BaseConocimiento, Vecindario
 from project.deliberation import Deliberation
+from project.filtro import CreenciaBayesiana, MallaFiltro
 from project.oracle import RepairRequest
 from project.planner import astar, manhattan
 
@@ -73,6 +79,17 @@ class Policy(StrEnum):
     """Reparación en caliente con presupuesto ``B`` de ediciones. Es lo único que la
     distingue de ``CLOSED_LOOP``."""
 
+    KNOWLEDGE_BASED = "KNOWLEDGE_BASED"
+    """Basado en conocimiento (R&N cap. 7): hereda la reparación en caliente de
+    ``CLOSED_LOOP``, pero sus creencias son una KB con fluentes y una región posible por
+    recurso. Elige objetivo por el peor caso sobre la región, y ante una divergencia solo
+    repara si la KB deduce que el plan es *inválido* (``docs/roadmap-c4b.md``, KB-2)."""
+
+    BAYESIAN = "BAYESIAN"
+    """Bayesiano (R&N cap. 14): como ``KNOWLEDGE_BASED``, con un filtro por recurso en vez
+    de una región y λ aprendido en vez de dado. Elige objetivo por costo esperado y repara
+    por utilidad esperada (``docs/roadmap-c5.md``, C5-B)."""
+
     @property
     def planifica(self) -> bool:
         """True si la política construye y ejecuta un plan explícito."""
@@ -85,7 +102,22 @@ class Policy(StrEnum):
         Es la replanificación *proactiva*, disparada por el monitoreo. La replanificación
         forzada por un fallo del plan la hacen todas las políticas que planifican.
         """
-        return self in (Policy.COLD_RESTART, Policy.CLOSED_LOOP, Policy.GOVERNED)
+        return self in (
+            Policy.COLD_RESTART,
+            Policy.CLOSED_LOOP,
+            Policy.GOVERNED,
+            Policy.KNOWLEDGE_BASED,
+            Policy.BAYESIAN,
+        )
+
+    @property
+    def infiere(self) -> bool:
+        """True si la política razona sobre dónde pueden estar los recursos.
+
+        Son las únicas que leen ``horizonte_validez`` y ``ticks_por_ask``, igual que solo
+        ``GOVERNED`` lee el presupuesto.
+        """
+        return self in (Policy.KNOWLEDGE_BASED, Policy.BAYESIAN)
 
 
 class Resource(CellAgent):
@@ -137,6 +169,22 @@ class Collector(CellAgent):
         self.presupuesto: int | None = (
             model.presupuesto if policy is Policy.GOVERNED else None
         )
+        # Lo mismo vale para la KB: solo la mantienen las dos políticas que razonan sobre
+        # la deriva, y solo ellas leen el horizonte de validez y el costo de preguntar.
+        # Para el resto `conocimiento` es None y ningún gancho se activa.
+        self.conocimiento: BaseConocimiento | CreenciaBayesiana | None = None
+        self.horizonte: str = model.horizonte_validez
+        self.ticks_por_ask: int = model.ticks_por_ask if policy.infiere else 0
+        if policy is Policy.KNOWLEDGE_BASED:
+            self.conocimiento = BaseConocimiento(
+                dinamico=model.lambda_dinamismo > 0,
+                vecinas=Vecindario(),
+                torus=model.torus,
+                dist=self._dist,
+            )
+        elif policy is Policy.BAYESIAN:
+            # No recibe λ: lo aprende (filtro.CreenciaBayesiana).
+            self.conocimiento = CreenciaBayesiana(MallaFiltro(model.libres))
 
         self.entregas = 0
         self.pasos_utiles = 0
@@ -146,15 +194,26 @@ class Collector(CellAgent):
         self.n_ediciones_por_fallo = 0
         self.tareas_fallidas = 0
         self.carga_perdida = 0
+        self.n_consultas = 0
 
         self._lineas_desde_edicion = 0
         self._divergente = False
         self._fallo_pendiente = False
+        self._celda_refutada: Any | None = None
+        self._refutacion_notificada: tuple[str, Any] | None = None
+        self._pausa = 0
 
     @property
     def lleno(self) -> bool:
         """True si ya no cabe otro recurso."""
         return len(self.carrying) >= self.model.capacidad
+
+    @property
+    def lambda_estimado(self) -> float:
+        """λ̂ de ``BAYESIAN`` (media posterior); ``nan`` para el resto de políticas."""
+        if isinstance(self.conocimiento, CreenciaBayesiana):
+            return self.conocimiento.lambda_estimado
+        return math.nan
 
     # ---------------------------------------------------------------- percepción
 
@@ -191,6 +250,16 @@ class Collector(CellAgent):
 
         Si el agente no ve ninguna de las dos cosas, sigue creyendo lo que creía: eso es
         lo que mide la métrica de ceguera.
+
+        Las políticas que infieren hacen además ``TELL`` de lo visto a su KB (pregunta 1
+        de KB-2), y no descartan la creencia refutada: ninguna observación se retira
+        (monotonía), y la región posible ya excluye la celda vista vacía, de modo que esa
+        creencia deja de ser candidata hasta que la región vuelva a cubrirla. Como la
+        creencia sigue en la tabla, la misma refutación se notifica una sola vez —igual
+        que en ``CLOSED_LOOP``, que la descarta al notificarla—: si no, se repetiría en cada
+        tick con la celda a la vista e interrumpiría cada deliberación. Conservarla es lo
+        que permite que, si el plan se mantiene, ver luego al objetivo en otro sitio
+        vuelva a marcar la divergencia.
         """
         visibles = self._vision()
         vistos: dict[str, Any] = {}
@@ -199,17 +268,34 @@ class Collector(CellAgent):
                 if isinstance(agent, Resource):
                     vistos[agent.rid] = cell
 
+        if self.conocimiento is not None:
+            self.conocimiento.percibir(
+                vistos, visibles, derivas=self.model.derivas, t=self.model.steps
+            )
+
         for rid, cell in vistos.items():
             anterior = self.belief.get(rid)
             self.belief[rid] = cell
             if rid == self.target and anterior is not None and anterior is not cell:
+                self._celda_refutada = anterior
                 self._marcar_divergencia()
+        notificada = self._refutacion_notificada
+        if notificada is not None and notificada[0] in vistos:
+            # Volver a ver el recurso renueva la creencia: una refutación posterior es
+            # información nueva y se notifica.
+            self._refutacion_notificada = None
 
         if self.target is None or self.target in vistos:
             return
         creido = self.belief.get(self.target)
         if creido is not None and creido in visibles:
-            self.belief.pop(self.target, None)
+            if self.conocimiento is None:
+                self.belief.pop(self.target, None)
+            elif self._refutacion_notificada == (self.target, creido):
+                return
+            else:
+                self._refutacion_notificada = (self.target, creido)
+            self._celda_refutada = creido
             self._marcar_divergencia()
 
     def _marcar_divergencia(self) -> None:
@@ -220,8 +306,18 @@ class Collector(CellAgent):
     # ------------------------------------------------------------------- decisión
 
     def step(self) -> None:
-        """Un tick: percibir, y luego deliberar o actuar. Nunca las dos cosas."""
+        """Un tick: percibir, y luego deliberar o actuar. Nunca las dos cosas.
+
+        Las consultas a la KB que se hacen en un evento de divergencia se cobran aquí, en
+        ticks quieto que suman a ``pasos_deliberando`` igual que los del oráculo
+        (``ticks_por_ask``; solo las políticas que infieren acumulan pausa).
+        """
         self.observar()
+
+        if self._pausa:
+            self._pausa -= 1
+            self.pasos_deliberando += 1
+            return
 
         if self.deliberation is not None:
             self._continuar_deliberacion()
@@ -276,6 +372,57 @@ class Collector(CellAgent):
         if not fuente:
             return None
         return min(fuente.items(), key=lambda kv: self._dist(self.cell, kv[1]))
+
+    def _candidatos(self) -> dict[str, Any]:
+        """Recursos sobre los que se puede planificar: los creídos y no transportados.
+
+        Las políticas que infieren descartan además los que ya no pueden estar en su
+        última celda observada (pregunta 1 de KB-2): es el ``Vacía(c,t)`` aplicado a todos
+        los recursos y no solo al objetivo.
+        """
+        fuente = self._conocidos(usar_creencias=True)
+        if self.conocimiento is None:
+            return fuente
+        return {
+            rid: cell
+            for rid, cell in fuente.items()
+            if self.conocimiento.posible(rid, cell)
+        }
+
+    def _elegir(self, fuente: dict[str, Any], pos: Any) -> tuple[str, Any] | None:
+        """El objetivo preferido desde ``pos``: la elección ávida de toda política con plan.
+
+        Las demás políticas eligen por distancia de Manhattan a la creencia; las que
+        infieren, por :meth:`_clave_objetivo`. En ambos casos es ``min`` sobre la tabla de
+        creencias en su orden, así que los empates se rompen igual y los controles exactos
+        (H2, HB2) pueden serlo.
+        """
+        if not fuente:
+            return None
+        if self.conocimiento is None:
+            return min(fuente.items(), key=lambda kv: self._dist(pos, kv[1]))
+        return min(fuente.items(), key=lambda kv: self._clave_objetivo(pos, *kv))
+
+    def _clave_objetivo(self, pos: Any, rid: str, cell: Any) -> float:
+        """Pregunta 2: cuánto cuesta asegurar ``rid`` desde ``pos``.
+
+        - ``KNOWLEDGE_BASED``: el peor caso, :math:`\\max_{x \\in R(r,t)} d(pos, x)`.
+        - ``BAYESIAN``: el costo esperado :math:`d/q`, con :math:`d` la distancia a la
+          última celda observada y :math:`q` la probabilidad de que siga ahí al llegar
+          (el filtro propagado :math:`d` pasos; sin propagar con horizonte ``"ahora"``).
+
+        El destino del plan sigue siendo la última celda observada: lo único que cambia
+        es el orden en que se persiguen los recursos.
+        """
+        conocimiento = self.conocimiento
+        if isinstance(conocimiento, BaseConocimiento):
+            return conocimiento.clave(rid, pos)
+        assert isinstance(conocimiento, CreenciaBayesiana)
+        d = self._dist(pos, cell)
+        q = conocimiento.prob_al_llegar(
+            rid, cell, d if self.horizonte == "llegada" else 0
+        )
+        return d / q if q > 0 else math.inf
 
     def _deambular(self) -> None:
         """Sin nada que perseguir, moverse al azar para descubrir el mundo."""
@@ -334,9 +481,10 @@ class Collector(CellAgent):
             if self.deliberation is not None:
                 return
         elif self._divergente and self._vigila_divergencias():
-            self._iniciar_deliberacion()
-            if self.deliberation is not None:
-                return
+            if not self._mantener_plan():
+                self._iniciar_deliberacion()
+                if self.deliberation is not None:
+                    return
 
         self._divergente = False
 
@@ -362,6 +510,63 @@ class Collector(CellAgent):
         """True si la política repara al detectar una divergencia, ahora mismo."""
         return self.policy.replanifica and self._puede_editar()
 
+    # ------------------------------------------------- consultas a la KB (KB-2, C5-B)
+
+    def _mantener_plan(self) -> bool:
+        """Pregunta 3, justo antes de pagar ``c``: ¿sigue siendo ejecutable el plan?
+
+        Solo la hacen las políticas que infieren; para el resto devuelve ``False`` y la
+        divergencia se repara como siempre. Si la respuesta es mantener, la divergencia se
+        olvida y el agente sigue como si no la hubiera habido. Si es reparar, viene la
+        pregunta 2 (reelegir objetivo dentro de :meth:`_iniciar_deliberacion`), que en un
+        evento de divergencia también se cobra.
+        """
+        if self.conocimiento is None:
+            return False
+        if self._plan_sigue_valido():
+            self._divergente = False
+            return True
+        self._cobrar_consulta()
+        return False
+
+    def _plan_sigue_valido(self) -> bool:
+        """Hacer la consulta 3 a la KB y cobrarla."""
+        assert self.conocimiento is not None
+        self._cobrar_consulta()
+        rid = self.target
+        if rid is None:
+            return False
+        celda, k = self._celda_del_pick()
+        return self.conocimiento.plan_valido(
+            rid,
+            refutada=self._celda_refutada,
+            celda_pick=celda,
+            k=k,
+            horizonte=self.horizonte,
+            costo=self.model.costo_edicion,
+        )
+
+    def _cobrar_consulta(self) -> None:
+        """Una consulta ``ASK`` más: se cuenta y se paga en ticks quieto más adelante."""
+        self.n_consultas += 1
+        self._pausa += self.ticks_por_ask
+
+    def _celda_del_pick(self) -> tuple[Any, int]:
+        """Dónde ocurre el próximo ``PICK`` y cuántas líneas ``GOTO`` faltan para él.
+
+        La celda es la del último ``GOTO`` antes del ``PICK`` (o la actual si no queda
+        ninguno), y como cada línea es un tick, ``k`` es también el número de derivas
+        que habrá antes de recoger.
+        """
+        celda, k = self.cell, 0
+        for line in self.book.remaining:
+            if line.op is LineOp.PICK:
+                break
+            if line.op is LineOp.GOTO:
+                celda = self.model.grid[line.arg]
+                k += 1
+        return celda, k
+
     def _actualizar_target(self) -> None:
         """El objetivo es el recurso de la próxima línea ``PICK`` pendiente."""
         for line in self.book.remaining:
@@ -385,15 +590,16 @@ class Collector(CellAgent):
         escribiría una persona.
         """
         self._divergente = False
-        libres = self._conocidos(usar_creencias=True)
+        libres = self._candidatos()
         pendientes = self.model.capacidad - len(self.carrying)
 
         lineas: list[Line] = []
         pos = self.cell
         for _ in range(pendientes):
-            if not libres:
+            elegido = self._elegir(libres, pos)
+            if elegido is None:
                 break
-            rid, cell = min(libres.items(), key=lambda kv: self._dist(pos, kv[1]))
+            rid, cell = elegido
             del libres[rid]
             ruta = self._ruta(pos, cell)
             if not ruta:
@@ -441,7 +647,7 @@ class Collector(CellAgent):
         """
         self._divergente = False
 
-        objetivo = self._recurso_mas_cercano(usar_creencias=True)
+        objetivo = self._elegir(self._candidatos(), self.cell)
         if objetivo is None or self.lleno:
             # Nada conocido que perseguir, o ya va lleno: no se delibera sobre la nada,
             # y por tanto no se paga. Es un plan de rutina.
@@ -495,16 +701,15 @@ class Collector(CellAgent):
         la entrega comprometida queda fuera del alcance de edición del agente.
         """
         libres = {
-            rid: cell
-            for rid, cell in self._conocidos(usar_creencias=True).items()
-            if rid not in excluir
+            rid: cell for rid, cell in self._candidatos().items() if rid not in excluir
         }
         faltan = self.model.capacidad - len(self.carrying) - 1
         lineas: list[Line] = []
         for _ in range(max(0, faltan)):
-            if not libres:
+            elegido = self._elegir(libres, pos)
+            if elegido is None:
                 break
-            rid, cell = min(libres.items(), key=lambda kv: self._dist(pos, kv[1]))
+            rid, cell = elegido
             del libres[rid]
             ruta = self._ruta(pos, cell)
             if not ruta:
@@ -542,13 +747,16 @@ class Collector(CellAgent):
         if self._divergente and self._vigila_divergencias():
             # Llega una divergencia nueva antes de terminar de pensar sobre la anterior:
             # los ticks gastados se pierden. Esto es el thrashing. Solo le pasa a quien
-            # monitorea: OPEN_LOOP ignora las divergencias también mientras delibera.
-            deliberacion.interrupt()
-            self.n_ediciones_desperdiciadas += 1
-            self.deliberation = None
-            self.pasos_deliberando += 1
-            self._iniciar_deliberacion(por_fallo=deliberacion.por_fallo)
-            return
+            # monitorea: OPEN_LOOP ignora las divergencias también mientras delibera. Las
+            # políticas que infieren se preguntan antes si el plan sigue sirviendo, y si
+            # sí, siguen pensando.
+            if not self._mantener_plan():
+                deliberacion.interrupt()
+                self.n_ediciones_desperdiciadas += 1
+                self.deliberation = None
+                self.pasos_deliberando += 1
+                self._iniciar_deliberacion(por_fallo=deliberacion.por_fallo)
+                return
 
         self.pasos_deliberando += 1
         deliberacion.tick()
@@ -648,6 +856,8 @@ class Collector(CellAgent):
             return False
         self.carrying.append(rid)
         self.belief.pop(rid, None)
+        if self.conocimiento is not None:
+            self.conocimiento.recoger(rid, self.model.steps)
         self.model.retirar_recurso(recurso)
         self.pasos_utiles += 1
         return True
@@ -681,6 +891,12 @@ class Collector(CellAgent):
         ``COLD_RESTART``, que la suelta como en toda reparación suya) y reproduce
         intacto el ``DELIVER`` bloqueado. La creencia sobre el objetivo se descarta,
         porque se acaba de comprobar que es falsa.
+
+        Aquí también la descartan las políticas que infieren, aunque en ``observar`` no lo
+        hagan: su KB conserva la observación, y descartar la entrada de la tabla igual que
+        ``CLOSED_LOOP`` mantiene el orden de inserción de ``belief``, que es el que rompe
+        los empates de la elección ávida. Sin eso el control exacto H2 fallaría por un
+        empate, no por una diferencia de conocimiento.
         """
         self.tareas_fallidas += 1
         if self.target is not None:

@@ -21,8 +21,9 @@
 > que han llegado a editar su propio límite de tiempo para seguir corriendo, y
 > que sin embargo se decide hoy por intuición, sin ninguna medida de cuándo
 > conviene. Progresivamente, se construye un experimento controlado en MESA
-> donde seis arquitecturas de agente (desde reflejo simple hasta un agente
-> gobernado con presupuesto de ediciones) recolectan recursos en una retícula
+> donde ocho arquitecturas de agente (desde reflejo simple hasta un agente
+> gobernado con presupuesto de ediciones y dos que razonan sobre lo que saben,
+> con lógica y con probabilidad) recolectan recursos en una retícula
 > cuyo entorno cambia con probabilidad λ por tick, de forma que el replanificador
 > queda modelado como un oráculo abstracto con competencia p y costo c por
 > edición. Finalmente, al barrer el plano (λ, c) se localiza la frontera que
@@ -97,6 +98,8 @@ La línea clásica se explica desde cero en `anexo-planning-clasico.md`.
 | Lazo cerrado (reparar en sitio, pagar c) | **AutoGPT** reescribe su plan-file en cada iteración; **Reflexion** reescribe su memoria verbal tras fallar; **AWM** induce workflows en línea; **SOAR** chunking | Shinn et al. 2023 (arXiv:2303.11366); Wang et al. 2024 (arXiv:2409.07429); Laird 2012 |
 | Gobernado (presupuesto B, alcance de edición acotado) | **The AI Scientist**: se documentó que editó su propio código para extenderse el límite de tiempo arbitrariamente y en otra corrida se relanzó a sí mismo (sección *Safe Code Execution*) | Lu et al. 2024 (arXiv:2408.06292) |
 | Oráculo con competencia p | **Voyager**: self-verification + reparación iterativa de sus propios programas (p < 1); **DreamCoder**: calidad de biblioteca aprendida | Wang et al. 2023 (arXiv:2305.16291); Ellis et al. 2021 (arXiv:2006.08381) |
+| Basado en conocimiento (KB con fluentes, repara solo si el plan es inválido) | El agente del Mundo de Wumpus que solo actúa sobre lo que puede deducir | R&N 2020 cap. 7 |
+| Bayesiano (aprende λ, filtra y repara por utilidad esperada) | El Wumpus probabilístico y el filtrado de estado oculto | R&N 2020 cap. 12–14 y §16.1 |
 | Thrashing (`n_ediciones_desperdiciadas`) | Los bucles sin progreso de AutoGPT (famosos, documentados por la comunidad, sin paper formal) | — (nota honesta: evidencia anecdótica) |
 
 Con esta tabla, "agente que reescribe el programa que lo ejecuta" deja de ser
@@ -139,9 +142,12 @@ Ese párrafo reemplazaría (o abriría) la sección *Motivación* de
   del reparador y presupuesto B de gobernanza, que es lo que un oráculo LLM
   añade de nuevo.
 - **"¿Por qué no experimentar en el sistema real?"** — Porque el oráculo
-  abstracto (p, c) generaliza: un despliegue cualquiera calibra su p con unas
-  pocas corridas y lee su decisión en la frontera ya construida, además de que
-  MESA da control experimental sobre λ que producción jamás daría.
+  abstracto (p, c) generaliza: un despliegue cualquiera estima su λ a partir de
+  su telemetría (la calibración ABC del modelo lo hace) y lee su decisión en la
+  frontera ya construida, además de que MESA da control experimental sobre λ
+  que producción jamás daría. Con el matiz honesto de que p no sale de esa
+  misma telemetría, pues los errores del replanificador se confunden con el
+  dinamismo, por lo que estimarla exige registrar algo más que los fallos.
 - **"AutoGPT/Voyager ya hacen esto"** — Sí lo hacen; lo que nadie ha hecho es
   medir cuándo conviene, y esa es la brecha que la propia clase reconoce como
   abierta (el "when" del survey).
@@ -198,7 +204,8 @@ Resultado: el avance pasó de 8 a 12 páginas y de 2.347 a 2.202 palabras contad
   publicación arbitrada.
 - El conteo de corridas del proyecto se corrigió de 6.240 a **8.100** (suma real de los CSV
   en `project/results/`), dato que estaba mal en el avance y en el notebook (tras la
-  corrección del 2026-10-09 el total es **8.640**, ver abajo).
+  corrección del 2026-10-09 el total pasó a **8.640**, ver abajo, y tras las extensiones de
+  noviembre es **16.260**, en trece barridos).
 
 **Desacople de vocabulario (2026-10-08):** el avance y este guion dejaron de describir
 mecanismos con nombres internos del sistema propio, cuyo vocabulario ya cambió (el
@@ -232,3 +239,22 @@ sostienen (con radio corto el lazo abierto y el cerrado casi empatan en promedio
 47.9 con `r=1`, y con visión completa la ventaja del lazo abierto es moderada, 129.5 contra
 114.5), mientras que este guion no cita cifras de resultados y solo ganó la precisión del
 pitch sobre el régimen donde conviene no planificar.
+
+**Extensiones posteriores al Avance 2 (2026-11-06):** el modelo ganó dos arquitecturas, y
+conviene contarlas en la presentación precisamente porque sus resultados son en buena parte
+negativos. Primeramente, `KNOWLEDGE_BASED` (sesión 4B) lleva una base de conocimiento con
+fluentes y una región posible por recurso, y solo repara cuando la KB deduce que el plan ya no
+puede cumplirse a la llegada, lo cual le da una ventaja sobre el lazo cerrado con el signo esperado
+en todas las celdas pero significativa solo con λ=0.5 y `r=3` (+21.3 ± 3.8), que se invierte
+en cuanto cada consulta cuesta un tick y que no alcanza a no planificar desde λ=0.25;
+progresivamente, `BAYESIAN` (sesión 5) aprende λ mirando, con error pequeño, y mantiene un
+filtro calibrado, pero **no** supera al agente lógico (−16 ± 4.3), porque su regla de
+reparación por utilidad esperada repara de más (trata cada reparación como si comprara certeza,
+cuando el plan reparado nace desactualizado);
+finalmente, la escasez de recursos refutó la hipótesis de que reparar valdría más cuando los
+objetivos escasean, la sensibilidad mostró que la diferencia entre lazo abierto y cerrado es
+casi toda ruido, y la calibración ABC recupera λ de la telemetría pero no `p`. El pitch del §1
+solo cambió en el número de arquitecturas, ya que ninguna de las dos mueve la conclusión
+central (con dinamismo alto y deliberación cara conviene no planificar), y la parte que sí
+pesa para la objeción «¿por qué no experimentar en el sistema real?» del §6 es la ABC, que ya
+quedó reflejada allí.

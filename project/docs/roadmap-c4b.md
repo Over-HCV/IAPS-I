@@ -75,13 +75,13 @@ DPLL. El riesgo es nulo, pues nada del repositorio lo importa todavía.
 
 **Checklist**
 
-- [ ] `project/logica.py` con lo anterior, en español, con referencias a R&N §7.5–7.6 en los docstrings
-- [ ] `project/tests/test_logica.py`:
-  - [ ] Ejemplo del libro (R1–R5): $KB \models \neg P_{1,2}$; $KB \models P_{2,2} \vee P_{3,1}$; $P_{2,2}$ → `desconocido`
-  - [ ] Acuerdo `tt_entails` ≡ `KnowledgeBase.ask` sobre ~100 oraciones aleatorias de ≤ 4 símbolos (semilla fija), como evidencia empírica de solidez y completitud
-  - [ ] Equivalencia semántica entre una oración y su CNF (ambas evaluadas con `pl_true` en los $2^n$ modelos)
-  - [ ] DPLL detecta $p \wedge \neg p$, la cláusula unitaria fuerza su valor, y la cadena de implicaciones del notebook ($x_0, x_0{\Rightarrow}x_1, \dots$) se decide rápido frente a la enumeración
-  - [ ] `exactly(k, n)` produce $\binom{n}{k+1}+\binom{n}{k-1}$ cláusulas, y `exactly(1, [a,b])` deja ambos símbolos en `desconocido` (el 50/50)
+- [x] `project/logica.py` con lo anterior, en español, con referencias a R&N §7.5–7.6 en los docstrings
+- [x] `project/tests/test_logica.py`:
+  - [x] Ejemplo del libro (R1–R5): $KB \models \neg P_{1,2}$; $KB \models P_{2,2} \vee P_{3,1}$; $P_{2,2}$ → `desconocido`
+  - [x] Acuerdo `tt_entails` ≡ `KnowledgeBase.ask` sobre ~100 oraciones aleatorias de ≤ 4 símbolos (semilla fija), como evidencia empírica de solidez y completitud
+  - [x] Equivalencia semántica entre una oración y su CNF (ambas evaluadas con `pl_true` en los $2^n$ modelos)
+  - [x] DPLL detecta $p \wedge \neg p$, la cláusula unitaria fuerza su valor, y la cadena de implicaciones del notebook ($x_0, x_0{\Rightarrow}x_1, \dots$) se decide rápido frente a la enumeración
+  - [x] `exactly(k, n)` produce $\binom{n}{k+1}+\binom{n}{k-1}$ cláusulas, y `exactly(1, [a,b])` deja ambos símbolos en `desconocido` (el 50/50)
 
 **Aceptación.** La suite queda en verde y `import project.logica` no arrastra dependencias de Mesa.
 
@@ -261,26 +261,43 @@ de alcance y así debe decirlo el cuaderno.
 
 **Checklist**
 
-- [ ] `Policy.KNOWLEDGE_BASED` en `agents.py` (con `planifica` y `replanifica` verdaderos), y una nota en `info/02-design.md` §3 que diga que hereda la reparación en caliente de `CLOSED_LOOP`
-- [ ] KB del agente: observaciones `Visto`/`Vacía`/`Recogido` con su tick, y región $R(r,t)$ incremental por recurso
-- [ ] Pregunta 2 (peor caso) en las tres elecciones de objetivo (`agents.py:278`, `396`, `507`)
-- [ ] Pregunta 3 con `horizonte_validez ∈ {"ahora", "llegada"}`, interceptando la divergencia antes de `_iniciar_deliberacion` (`agents.py:336-339`) y antes de interrumpir una deliberación (`agents.py:542-551`)
-- [ ] Parámetros `horizonte_validez` y `ticks_por_ask` en `OASysWorld.__init__`; reporter `n_consultas` en `REPORTERS` (`model.py:272`)
-- [ ] `project/tests/test_conocimiento.py`:
-  - [ ] Sin observaciones, tras `k` ticks la región es la bola geodésica de radio `k`, y junto a una pared es estrictamente menor que la de Manhattan
-  - [ ] Una celda vista vacía en $t'$ se excluye en $t'$ pero vuelve a ser posible después si es alcanzable (la poda ingenua «bola menos vacías» falla esta prueba)
-  - [ ] La bola del segundo avistamiento está contenida en la del primero (propiedad, con semillas)
-  - [ ] **Solidez:** en N corridas con λ>0 y `r` finito, la celda real de cada recurso rastreado está en su región en todo tick (la versión honesta del «0 muertes en celda declarada segura»)
-  - [ ] Prueba cruzada con DPLL en una retícula de 4×4 y 3 ticks: `falso` fuera de la región, `desconocido` dentro
-  - [ ] Horizonte `"ahora"` dispara exactamente en los mismos ticks que las reglas de `agents.py:205` y `211`
-  - [ ] H2: con `r=None` y `"ahora"`, métricas idénticas a `CLOSED_LOOP` en varias semillas y λ>0; con λ=0, idénticas en todo radio
-- [ ] Barridos (c=5, p=0.9, `BASE`, 30 semillas):
-  - [ ] `SWEEPS["conocimiento"]`: `{MODEL_BASED, OPEN_LOOP, CLOSED_LOOP, KNOWLEDGE_BASED}` × λ {0.0, 0.1, 0.25, 0.5} × radio {1, 3, None}, horizonte `"llegada"`, `ticks_por_ask=0` → 4×4×3×30 = **1.440 corridas** (las filas de `OPEN_LOOP` y `CLOSED_LOOP` deben reproducir `observabilidad.csv` exactamente y las de `MODEL_BASED` con `r=3` las de `principal.csv`, lo cual sirve de regresión; `MODEL_BASED` entra porque es la vara de H1b y `observabilidad` no la barre en radio)
-  - [ ] `SWEEPS["conocimiento_ahora"]`: `KNOWLEDGE_BASED` con horizonte `"ahora"` × λ × radio → 4×3×30 = **360 corridas** (H2 y la ablación)
-  - [ ] `SWEEPS["conocimiento_costo"]`: `KNOWLEDGE_BASED` con `"llegada"` × `ticks_por_ask` {1, 2, 5} × λ {0.1, 0.25, 0.5}, `r=3` → 3×3×30 = **270 corridas** (H3)
-  - [ ] Total **2.070 corridas**; actualizar la tabla de barridos de `project/README.md`
-- [ ] `fig_conocimiento()` en `analysis.py` reutilizando `lineas` (`analysis.py:337`): x=λ, serie=política, faceta=radio
+- [x] `Policy.KNOWLEDGE_BASED` en `agents.py` (con `planifica` y `replanifica` verdaderos), y una nota en `info/02-design.md` §3 que diga que hereda la reparación en caliente de `CLOSED_LOOP`
+- [x] KB del agente: observaciones `Visto`/`Vacía`/`Recogido` con su tick, y región $R(r,t)$ incremental por recurso
+- [x] Pregunta 2 (peor caso) en las tres elecciones de objetivo (`agents.py:278`, `396`, `507`)
+- [x] Pregunta 3 con `horizonte_validez ∈ {"ahora", "llegada"}`, interceptando la divergencia antes de `_iniciar_deliberacion` (`agents.py:336-339`) y antes de interrumpir una deliberación (`agents.py:542-551`)
+- [x] Parámetros `horizonte_validez` y `ticks_por_ask` en `OASysWorld.__init__`; reporter `n_consultas` en `REPORTERS` (`model.py:272`)
+- [x] `project/tests/test_conocimiento.py`:
+  - [x] Sin observaciones, tras `k` ticks la región es la bola geodésica de radio `k`, y junto a una pared es estrictamente menor que la de Manhattan
+  - [x] Una celda vista vacía en $t'$ se excluye en $t'$ pero vuelve a ser posible después si es alcanzable (la poda ingenua «bola menos vacías» falla esta prueba)
+  - [x] La bola del segundo avistamiento está contenida en la del primero (propiedad, con semillas)
+  - [x] **Solidez:** en N corridas con λ>0 y `r` finito, la celda real de cada recurso rastreado está en su región en todo tick (la versión honesta del «0 muertes en celda declarada segura»)
+  - [x] Prueba cruzada con DPLL en una retícula de 4×4 y 3 ticks: `falso` fuera de la región, `desconocido` dentro
+  - [x] Horizonte `"ahora"` dispara exactamente en los mismos ticks que las reglas de `agents.py:205` y `211`
+  - [x] H2: con `r=None` y `"ahora"`, métricas idénticas a `CLOSED_LOOP` en varias semillas y λ>0; con λ=0, idénticas en todo radio
+- [x] Barridos (c=5, p=0.9, `BASE`, 30 semillas):
+  - [x] `SWEEPS["conocimiento"]`: `{MODEL_BASED, OPEN_LOOP, CLOSED_LOOP, KNOWLEDGE_BASED}` × λ {0.0, 0.1, 0.25, 0.5} × radio {1, 3, None}, horizonte `"llegada"`, `ticks_por_ask=0` → 4×4×3×30 = **1.440 corridas** (las filas de `OPEN_LOOP` y `CLOSED_LOOP` deben reproducir `observabilidad.csv` exactamente y las de `MODEL_BASED` con `r=3` las de `principal.csv`, lo cual sirve de regresión; `MODEL_BASED` entra porque es la vara de H1b y `observabilidad` no la barre en radio)
+  - [x] `SWEEPS["conocimiento_ahora"]`: `KNOWLEDGE_BASED` con horizonte `"ahora"` × λ × radio → 4×3×30 = **360 corridas** (H2 y la ablación)
+  - [x] `SWEEPS["conocimiento_costo"]`: `KNOWLEDGE_BASED` con `"llegada"` × `ticks_por_ask` {1, 2, 5} × λ {0.1, 0.25, 0.5}, `r=3` → 3×3×30 = **270 corridas** (H3)
+  - [x] Total **2.070 corridas**; actualizar la tabla de barridos de `project/README.md`
+- [x] `fig_conocimiento()` en `analysis.py` reutilizando `lineas` (`analysis.py:337`): x=λ, serie=política, faceta=radio
 - [ ] Sección del cuaderno con hipótesis, figura, veredicto, la lectura de H1 y H1b frente a la ablación `"ahora"`, el desglose de H4 (`n_ediciones_por_fallo` frente a las proactivas, y `pasos_deliberando`), el límite honesto y la respuesta a la Tarea 4 de C4B
+
+**Resultado (2026-11-06).** Con `BAYESIAN` de [`roadmap-c5.md`](roadmap-c5.md) incluido, los barridos
+quedaron en 1.800 (`conocimiento`), 720 (`conocimiento_ahora`) y 540 (`conocimiento_costo`)
+corridas en vez de 1.440/360/270. Controles exactos: H2 pasa semilla a semilla (con `r=∞` y
+`"ahora"`, y con λ=0 en todo radio), la región contiene la celda real en todo tick, y DPLL en
+4×4 responde `falso` fuera y `desconocido` dentro. Las filas OL/CL/MB del barrido reproducen
+`observabilidad.csv` y `principal.csv` (0 distintas). Veredictos, por pares de semilla con `r=3`:
+H1 tiene el signo esperado en todas las celdas pero solo es significativa a λ=0.5 (+21.3 ± 3.8
+sobre `CLOSED_LOOP`), y desaparece en la ablación `"ahora"`, de modo que la ganancia viene del
+horizonte `"llegada"`; H1b se cumple a λ=0.1 (+5.3 ± 4.7 sobre `OPEN_LOOP`) y falla a 0.25 y
+0.5 frente a `MODEL_BASED` (−24.7 y −67); H3 se confirma con fuerza (la ventaja ya se invierte
+con un tick por consulta); H4 se confirma (más replanificaciones por fallo, menos proactivas y
+63 ± 13.6 ticks menos deliberando a λ=0.5). Desviaciones de implementación: `"ahora"` compara
+contra la celda creída recién refutada (la del `PICK` rompía H2 por desincronización entre plan
+y creencia); la creencia refutada se conserva y se notifica una sola vez; los barridos
+originales quedan congelados a las seis políticas, y `model.py` cuenta las derivas entre
+observaciones (con `orden_aleatorio` pueden ser 0, 1 o 2).
 
 **Aceptación.** H2 pasa exacto (semilla a semilla), la prueba de solidez y la prueba cruzada con
 DPLL pasan, y H1, H1b, H3 y H4 se evalúan con 30 réplicas y banda de error, diciendo
@@ -302,10 +319,16 @@ recortarse por el disco de visión y colapsar a un punto al volver a verlo.
 
 **Checklist**
 
-- [ ] Campo `regiones: dict[str, tuple[coord, ...]]` en `Frame` (`animacion.py:78`), lleno solo para `KNOWLEDGE_BASED` en `_capturar` (`animacion.py:202`)
-- [ ] `_panel_grid` (`animacion.py:330`) sombrea la región con alfa bajo, en el color de la creencia, y la serie se dibuja aunque vaya vacía para que la leyenda no salte
-- [ ] Test: el panel dibuja la región sin error y la celda real cae dentro (reutiliza la prueba de solidez de KB-2)
+- [x] Campo `regiones: dict[str, tuple[coord, ...]]` en `Frame` (`animacion.py:78`), lleno solo para `KNOWLEDGE_BASED` en `_capturar` (`animacion.py:202`)
+- [x] `_panel_grid` (`animacion.py:330`) sombrea la región con alfa bajo, en el color de la creencia, y la serie se dibuja aunque vaya vacía para que la leyenda no salte
+- [x] Test: el panel dibuja la región sin error y la celda real cae dentro (reutiliza la prueba de solidez de KB-2)
 - [ ] Celda del cuaderno con `anim.mostrar(policy="KNOWLEDGE_BASED", ...)` y una lectura de dos líneas
+
+**Resultado (2026-11-06).** Hecho para las dos políticas: región plana para
+`KNOWLEDGE_BASED` y mapa de calor para `BAYESIAN`, en naranja (el gris de la creencia no se
+distinguía de los obstáculos), empujadas por las derivas pendientes porque el agente observa
+antes de la deriva de cada tick. Tiras exportadas en `results/animaciones/tira-knowledge-based.png`
+y `tira-bayesian.png` (`rng=3`, λ=0.25, `c=5`, `r=3`).
 
 **Aceptación.** La película se entiende sin narración: dónde puede estar cada recurso y por qué
 el agente eligió el que eligió.
