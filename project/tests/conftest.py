@@ -1,7 +1,7 @@
-"""Poner ``project/`` en sys.path para que ``oasys_abm`` sea importable.
+"""Poner la raíz del repositorio en sys.path para que el paquete ``project`` sea importable.
 
-No se importa ``project`` como paquete a propósito: su ``__init__.py`` está roto en la
-copia vendorizada de los ejemplos de Mesa.
+Así los tests corren con ``uv run pytest project/tests`` sin instalar el paquete, igual
+que el cuaderno, que importa ``from project import ...``.
 """
 
 from pathlib import Path

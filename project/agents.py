@@ -1,16 +1,31 @@
 """Las seis arquitecturas de agente.
 
-Las cinco primeras corresponden una a una con la taxonomía de Russell & Norvig §2.4, que
-es el primer resultado de aprendizaje de la asignatura. Las dos últimas modelan los dos
-modos de ejecución de OASys: ``cold`` (la edición aplica en la corrida siguiente, y el
-trabajo en vuelo se pierde) y ``run=hot`` (la edición aplica en sitio).
+Las tres primeras recorren la taxonomía de Russell & Norvig §2.4 (reflejo simple, reflejo
+basado en modelo, basado en objetivos), que es el primer resultado de aprendizaje de la
+asignatura. Las tres últimas replanifican al divergir y difieren en cuándo aplica la
+reparación: **en frío** (en la ejecución siguiente, y el trabajo en curso se pierde), **en
+caliente** (en sitio, sobre la ejecución en curso) o en caliente con un presupuesto de
+ediciones.
 
-Dos decisiones de fidelidad importantes.
+Tres decisiones de fidelidad importantes.
 
 **El plan inicial no lo escribe el oráculo.** Se construye con A\\* sobre la creencia
 actual, de forma determinista. El oráculo ruidoso interviene solo en las *reparaciones*.
-Es lo que ocurre en OASys, donde el programa ``.os`` lo escribe una persona y el LLM solo
-actúa a través de ``editBook``.
+Es lo habitual en un motor de ejecución agéntica: el programa inicial lo escribe una
+persona, y el LLM solo interviene reescribiendo el plan cuando deja de servir.
+
+**La regla de costo es la misma para todo planificador.** Los planes de rutina —el
+inicial y el que sigue a una entrega sin que nada haya fallado— son A\\* determinista y
+gratuitos: equivalen al programa que se le entrega de antemano al agente. Toda
+replanificación de *reparación*, en cambio, pasa por el mismo replanificador (el oráculo,
+con competencia ``p``) y cuesta ``c`` ticks de deliberación, la dispare un **fallo del
+plan** (llegar a la celda y no encontrar el recurso, o un plan que ya no puede
+ejecutarse) o una **divergencia detectada** por el monitoreo. Las políticas que planifican
+difieren por tanto solo en *cuándo* invocan al replanificador —``OPEN_LOOP`` al fallar,
+``CLOSED_LOOP`` y ``GOVERNED`` al detectar la divergencia— y no en si lo pagan. Sin esta
+regla el lazo abierto replanificaría gratis y con competencia perfecta tras cada fallo, y
+el experimento compararía una reparación pagada contra una gratuita en vez de dos
+criterios sobre cuándo reparar (``info/02-design.md`` §3.2).
 
 **La tarea encadena varios objetivos.** El agente debe reunir ``capacidad`` recursos
 antes de entregar. Sin eso, la comparación central del trabajo se vacía: mientras el
@@ -44,16 +59,19 @@ class Policy(StrEnum):
     """Reflejo basado en modelo: mantiene creencias, sigue sin plan (R&N §2.4.3)."""
 
     OPEN_LOOP = "OPEN_LOOP"
-    """Basado en objetivos, lazo abierto: planifica una vez y ejecuta ciego."""
+    """Basado en objetivos, lazo abierto: ejecuta el plan sin monitorearlo y solo
+    replanifica —pagando la deliberación— cuando el plan falla."""
 
     COLD_RESTART = "COLD_RESTART"
-    """OASys ``cold``: al divergir, la corrida muere y el trabajo en vuelo se pierde."""
+    """Reinicio en frío: al divergir, la edición aplica en la ejecución siguiente y el
+    trabajo en curso se pierde."""
 
     CLOSED_LOOP = "CLOSED_LOOP"
-    """OASys ``run=hot``: repara el plan en sitio pagando la deliberación."""
+    """Reparación en caliente: repara el plan en sitio pagando la deliberación."""
 
     GOVERNED = "GOVERNED"
-    """``run=hot`` con presupuesto de ediciones y líneas bloqueadas."""
+    """Reparación en caliente con presupuesto ``B`` de ediciones. Es lo único que la
+    distingue de ``CLOSED_LOOP``."""
 
     @property
     def planifica(self) -> bool:
@@ -62,7 +80,11 @@ class Policy(StrEnum):
 
     @property
     def replanifica(self) -> bool:
-        """True si la política reacciona a las divergencias replanificando."""
+        """True si la política reacciona a las divergencias replanificando.
+
+        Es la replanificación *proactiva*, disparada por el monitoreo. La replanificación
+        forzada por un fallo del plan la hacen todas las políticas que planifican.
+        """
         return self in (Policy.COLD_RESTART, Policy.CLOSED_LOOP, Policy.GOVERNED)
 
 
@@ -108,9 +130,10 @@ class Collector(CellAgent):
         self.carrying: list[str] = []
         self.deliberation: Deliberation | None = None
         # El presupuesto de ediciones es la gobernanza, y la gobernanza es lo que
-        # distingue a GOVERNED de CLOSED_LOOP (docs/02-design.md §3 y §5: «B —
-        # ediciones permitidas, solo GovernedAgent»). Leerlo para toda política haría
-        # que el barrido `gobernanza` comparase una política contra sí misma.
+        # distingue a GOVERNED de CLOSED_LOOP (info/02-design.md §3 y §5: «B —
+        # ediciones permitidas, solo GOVERNED»). Leerlo para toda política haría
+        # que el barrido `gobernanza` comparase una política contra sí misma. Acota solo
+        # las reparaciones proactivas: las forzadas por un fallo no se pueden evitar.
         self.presupuesto: int | None = (
             model.presupuesto if policy is Policy.GOVERNED else None
         )
@@ -120,11 +143,13 @@ class Collector(CellAgent):
         self.pasos_deliberando = 0
         self.n_ediciones = 0
         self.n_ediciones_desperdiciadas = 0
+        self.n_ediciones_por_fallo = 0
         self.tareas_fallidas = 0
         self.carga_perdida = 0
 
         self._lineas_desde_edicion = 0
         self._divergente = False
+        self._fallo_pendiente = False
 
     @property
     def lleno(self) -> bool:
@@ -137,8 +162,8 @@ class Collector(CellAgent):
         """Celdas dentro del radio de observación.
 
         Un radio ``None`` significa observabilidad total, que es el caso de control del
-        experimento. Un radio finito modela el set ``ignore`` de OASys: hay partes del
-        mundo que el agente simplemente no ve.
+        experimento. Un radio finito modela la **observabilidad parcial**: hay partes del
+        mundo que el agente no tiene en su contexto y simplemente no ve.
         """
         radio = self.model.radio
         if radio is None:
@@ -288,14 +313,27 @@ class Collector(CellAgent):
     # ----------------------------------------------------- políticas con plan
 
     def _paso_planificado(self) -> None:
-        """Ejecutar el plan, reaccionando a la divergencia según la política.
+        """Ejecutar el plan, reparándolo antes si hace falta.
+
+        Hay dos disparadores de reparación, y los dos pasan por el mismo replanificador
+        al mismo precio (ver la regla de costo en el docstring del módulo):
+
+        - un **fallo del plan** en el tick anterior obliga a replanificar a *toda*
+          política que planifica, y no consume presupuesto: es inevitable;
+        - una **divergencia detectada** dispara la reparación proactiva, solo en las
+          políticas que monitorean y mientras les quede presupuesto.
 
         Con ``c = 0`` la deliberación es instantánea y el agente todavía actúa en el
         mismo tick. Cobrarle un tick por una edición que por definición es gratuita
         falsearía el experimento justo en el punto de control: con deliberación sin
         costo, el lazo cerrado debe poder igualar al abierto.
         """
-        if self._divergente and self.policy.replanifica and self._puede_editar():
+        if self._fallo_pendiente:
+            self._fallo_pendiente = False
+            self._iniciar_deliberacion(por_fallo=True)
+            if self.deliberation is not None:
+                return
+        elif self._divergente and self._vigila_divergencias():
             self._iniciar_deliberacion()
             if self.deliberation is not None:
                 return
@@ -311,8 +349,18 @@ class Collector(CellAgent):
         self._ejecutar_linea()
 
     def _puede_editar(self) -> bool:
-        """La gobernanza: con el presupuesto agotado ya no se puede reescribir."""
+        """La gobernanza: con el presupuesto agotado ya no se repara de forma proactiva.
+
+        El presupuesto acota solo las reparaciones disparadas por una divergencia. Las
+        forzadas por un fallo se pagan siempre y no lo consumen, así que ``GOVERNED`` con
+        el presupuesto agotado se comporta exactamente como ``OPEN_LOOP`` (y con
+        ``B = 0`` es idéntica a ella, semilla a semilla).
+        """
         return self.presupuesto is None or self.presupuesto > 0
+
+    def _vigila_divergencias(self) -> bool:
+        """True si la política repara al detectar una divergencia, ahora mismo."""
+        return self.policy.replanifica and self._puede_editar()
 
     def _actualizar_target(self) -> None:
         """El objetivo es el recurso de la próxima línea ``PICK`` pendiente."""
@@ -323,10 +371,13 @@ class Collector(CellAgent):
         self.target = None
 
     def _nuevo_plan(self) -> None:
-        """Construir un plan desde cero con A\\*, sin intervención del oráculo.
+        """Construir un plan de rutina desde cero con A\\*, sin intervención del oráculo.
 
-        Corresponde al programa ``.os`` escrito a mano en OASys: el plan inicial es
-        determinista, y el replanificador ruidoso solo aparece al repararlo.
+        Corresponde al programa escrito a mano por una persona: el plan inicial es
+        determinista, y el replanificador ruidoso solo aparece al repararlo. Por eso es
+        gratuito, y por eso solo se usa cuando nada ha fallado —al empezar, tras una
+        entrega o cuando no hay plan que seguir—: tras un fallo, el plan nuevo es una
+        reparación y se paga (:meth:`_fallar_tarea`).
 
         El encadenamiento de objetivos es ávido —el más cercano primero— y no resuelve
         el problema del viajante. Es deliberado: el objeto de estudio es la reparación
@@ -364,8 +415,13 @@ class Collector(CellAgent):
 
     # ------------------------------------------------------------ deliberación
 
-    def _iniciar_deliberacion(self) -> None:
+    def _iniciar_deliberacion(self, *, por_fallo: bool = False) -> None:
         """Consultar al oráculo y quedarse pensando ``c`` ticks.
+
+        Es la única vía de reparación, la dispare un fallo del plan (``por_fallo=True``,
+        replanificación forzada) o una divergencia detectada (reparación proactiva). Que
+        ambas compartan oráculo, costo y forma de aplicarse es lo que hace justa la
+        comparación entre políticas.
 
         Antes de preguntar hay que decidir *sobre qué* preguntar. Si el objetivo
         desapareció y el agente no lo ve, reparar la ruta hacia él no tiene sentido: no
@@ -387,9 +443,9 @@ class Collector(CellAgent):
 
         objetivo = self._recurso_mas_cercano(usar_creencias=True)
         if objetivo is None or self.lleno:
-            # Nada conocido que perseguir, o ya va lleno: no se delibera sobre la nada.
-            self.book = self._plan_de_regreso()
-            self._actualizar_target()
+            # Nada conocido que perseguir, o ya va lleno: no se delibera sobre la nada,
+            # y por tanto no se paga. Es un plan de rutina.
+            self._plan_sin_objetivo()
             return
 
         if (
@@ -413,8 +469,7 @@ class Collector(CellAgent):
             )
         )
         if not prop.feasible:
-            self.book = self._plan_de_regreso()
-            self._actualizar_target()
+            self._plan_sin_objetivo()
             return
 
         self.deliberation = Deliberation(
@@ -422,6 +477,7 @@ class Collector(CellAgent):
             from_idx=prop.from_idx,
             lines=prop.lines,
             label=str(prop.kind),
+            por_fallo=por_fallo,
         )
         if self.deliberation.is_complete:
             self._aplicar_deliberacion()
@@ -433,6 +489,10 @@ class Collector(CellAgent):
         estará tras la recogida. Si el oráculo lo manda a otro sitio, la continuación
         queda algo desalineada — cosa que también le pasa a un replanificador real que
         escribe el resto del plan asumiendo que su propio objetivo era el correcto.
+
+        El ``DELIVER`` final se crea con ``locked=True``, igual que en
+        :meth:`_nuevo_plan` y :meth:`_plan_de_regreso`: en toda política que replanifica,
+        la entrega comprometida queda fuera del alcance de edición del agente.
         """
         libres = {
             rid: cell
@@ -456,6 +516,18 @@ class Collector(CellAgent):
         lineas.append(Line(LineOp.DELIVER, None, locked=True))
         return lineas
 
+    def _plan_sin_objetivo(self) -> None:
+        """Sin objetivo sobre el cual reparar: volver con la carga, o quedarse sin plan.
+
+        Con carga, el plan es regresar a la base y entregarla. Sin carga, regresar no
+        sirve de nada —el ``DELIVER`` final fallaría por falta de carga y contaría como
+        una tarea fallida espuria—, así que el plan queda vacío y el agente deambula
+        hasta descubrir algún recurso. Ninguno de los dos casos pasa por el oráculo ni
+        cuesta deliberación.
+        """
+        self.book = self._plan_de_regreso() if self.carrying else Book()
+        self._actualizar_target()
+
     def _plan_de_regreso(self) -> Book:
         """Plan para volver a la base con lo que se lleve y entregarlo."""
         lineas = goto_lines(self._ruta(self.cell, self.model.base))
@@ -467,14 +539,15 @@ class Collector(CellAgent):
         deliberacion = self.deliberation
         assert deliberacion is not None
 
-        if self._divergente:
+        if self._divergente and self._vigila_divergencias():
             # Llega una divergencia nueva antes de terminar de pensar sobre la anterior:
-            # los ticks gastados se pierden. Esto es el thrashing.
+            # los ticks gastados se pierden. Esto es el thrashing. Solo le pasa a quien
+            # monitorea: OPEN_LOOP ignora las divergencias también mientras delibera.
             deliberacion.interrupt()
             self.n_ediciones_desperdiciadas += 1
             self.deliberation = None
             self.pasos_deliberando += 1
-            self._iniciar_deliberacion()
+            self._iniciar_deliberacion(por_fallo=deliberacion.por_fallo)
             return
 
         self.pasos_deliberando += 1
@@ -483,7 +556,14 @@ class Collector(CellAgent):
             self._aplicar_deliberacion()
 
     def _aplicar_deliberacion(self) -> None:
-        """Instalar el plan reparado, con la semántica de la política."""
+        """Instalar el plan reparado, con la semántica de la política.
+
+        La forma de aplicar depende de la política y no del disparador: ``COLD_RESTART``
+        aplica en frío también la replanificación forzada por un fallo, y las demás en
+        caliente. Toda reparación cuenta en ``n_ediciones`` —es una reescritura del plan—,
+        pero solo las proactivas consumen presupuesto; las forzadas por un fallo se
+        cuentan además aparte, en ``n_ediciones_por_fallo``.
+        """
         deliberacion = self.deliberation
         assert deliberacion is not None
         self.deliberation = None
@@ -493,31 +573,32 @@ class Collector(CellAgent):
         else:
             self._aplicar_en_caliente(deliberacion)
 
-        if self.presupuesto is not None:
+        if deliberacion.por_fallo:
+            self.n_ediciones_por_fallo += 1
+        elif self.presupuesto is not None:
             self.presupuesto -= 1
         self.n_ediciones += 1
         self._lineas_desde_edicion = 0
         self._actualizar_target()
 
     def _aplicar_en_caliente(self, deliberacion: Deliberation) -> None:
-        """``run=hot``: parchear el sufijo del plan vivo, conservando el progreso."""
+        """En caliente: parchear el sufijo del plan en curso, conservando el progreso."""
         try:
             self.book.replace_suffix(deliberacion.from_idx, deliberacion.lines)
         except EditRejected:
-            # La gobernanza rechaza la edición: el plan queda como estaba. Es el
-            # comportamiento de validate_edit en OASys, donde un editBook inválido no
-            # deja el device a medias.
+            # La edición viola una invariante del plan (toca líneas ya ejecutadas o
+            # fuera del alcance de edición) y se rechaza entera: el plan queda como
+            # estaba, nunca a medias, y la edición se cuenta como desperdiciada.
             self.n_ediciones_desperdiciadas += 1
 
     def _aplicar_en_frio(self, lines: list[Line]) -> None:
-        """``cold``: la corrida muere y el trabajo en vuelo se pierde.
+        """En frío: se aborta la ejecución y se pierde el trabajo en curso.
 
-        Es el *clock-edge* de OASys: el scheduler ejecuta un snapshot previo, así que la
-        edición solo tiene efecto en la corrida siguiente y todo lo hecho en la actual se
-        descarta (``backend/src/engine/mod.rs:142``). Aquí eso significa soltar la carga
-        acumulada y arrancar con el plan nuevo desde cero. La diferencia de rendimiento
-        contra ``CLOSED_LOOP`` es el costo cuantificado de no haber implementado
-        ``run=hot``.
+        Modela a los sistemas que aplican ediciones en la ejecución siguiente: la edición
+        solo tiene efecto al reiniciar y todo lo hecho en la ejecución actual se
+        descarta. Aquí eso significa soltar la carga acumulada y arrancar con el plan
+        nuevo desde cero. La diferencia de rendimiento contra ``CLOSED_LOOP`` es el valor
+        cuantificado de reparar en caliente en lugar de reiniciar en frío.
         """
         for rid in self.carrying:
             self.model.soltar_recurso(rid, self.cell)
@@ -583,17 +664,29 @@ class Collector(CellAgent):
         return True
 
     def _fallar_tarea(self) -> None:
-        """El plan dejó de ser ejecutable: se abandona y se planifica de nuevo.
+        """El plan dejó de ser ejecutable: queda pendiente una replanificación forzada.
 
         Le pasa sobre todo a ``OPEN_LOOP``, que ignora las divergencias y solo descubre
-        el problema cuando intenta recoger algo que ya no está. Ese descubrimiento
-        tardío es precisamente su desventaja.
+        el problema cuando intenta recoger algo que ya no está (monitoreo a nivel de
+        acción, R&N §11.5.3). Ese descubrimiento tardío es precisamente su desventaja.
+
+        El tick del fallo ya se gastó en la acción fallida. En el tick siguiente
+        :meth:`_paso_planificado` repara el plan por la vía de siempre —oráculo con
+        competencia ``p``, ``c`` ticks de deliberación— y sin tocar el presupuesto. Antes
+        el plan se vaciaba y se reconstruía gratis y con A\\* exacto, lo que regalaba al
+        lazo abierto una replanificación perfecta y sin costo tras cada fallo.
+
+        El plan se conserva con el contador sobre la línea que falló: la reparación
+        reescribe el sufijo desde ahí, conserva la carga que ya se lleva (salvo en
+        ``COLD_RESTART``, que la suelta como en toda reparación suya) y reproduce
+        intacto el ``DELIVER`` bloqueado. La creencia sobre el objetivo se descarta,
+        porque se acaba de comprobar que es falsa.
         """
         self.tareas_fallidas += 1
         if self.target is not None:
             self.belief.pop(self.target, None)
-        self.book = Book()
         self.target = None
+        self._fallo_pendiente = True
 
     # ------------------------------------------------------------------ utilidades
 

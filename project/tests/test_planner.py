@@ -2,7 +2,7 @@
 
 BFS es óptima en una retícula de coste unitario, así que sirve de referencia para
 verificar que la heurística de Manhattan no rompe la optimalidad de A\\*
-(Russell & Norvig, §3.4–3.5). Es el control de sanidad nº 5 de ``docs/02-design.md``.
+(Russell & Norvig, §3.4–3.5). Es el control de sanidad nº 5 de ``info/02-design.md``.
 """
 
 import random

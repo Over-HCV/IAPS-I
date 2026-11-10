@@ -14,10 +14,10 @@ error, facetas en rejilla), así que el backend se cambia en un solo sitio::
     analysis.BACKEND = "plotly"          # global
     analysis.fig_frontera(backend="mpl") # o por llamada
 
-Uso::
+Uso, desde la raíz del repositorio::
 
-    PYTHONPATH=project uv run python -m oasys_abm.analysis --figuras
-    PYTHONPATH=project uv run python -m oasys_abm.analysis --controles
+    uv run python -m project.analysis --figuras
+    uv run python -m project.analysis --controles
 """
 
 from __future__ import annotations
@@ -57,7 +57,7 @@ def cargar(nombre: str) -> pd.DataFrame:
     if not ruta.exists():
         raise FileNotFoundError(
             f"no existe {ruta}. Generarlo con:\n"
-            f"    PYTHONPATH=project uv run python -m oasys_abm.experiments "
+            f"    uv run python -m project.experiments "
             f"--sweep {nombre}"
         )
     df = pd.read_csv(ruta)
@@ -108,11 +108,12 @@ def agregar(
 
 
 def delta_hot_vs_cold(df: pd.DataFrame | None = None) -> pd.DataFrame:
-    """El costo de que ``run=hot`` no esté implementado, en unidades del modelo.
+    """El valor de reparar en caliente frente a reiniciar en frío, en unidades del modelo.
 
-    ``CLOSED_LOOP`` es ``run=hot`` y ``COLD_RESTART`` es lo que OASys hace hoy: reparar el
-    plan en sitio contra tirar el trabajo en vuelo y reiniciar (``docs/02-design.md`` §3).
-    La diferencia entre ambos es el entregable que vuelve al sistema real.
+    ``CLOSED_LOOP`` repara el plan en sitio; ``COLD_RESTART`` tira el trabajo en curso y
+    aplica la edición en la ejecución siguiente (``info/02-design.md`` §3). La diferencia
+    entre ambos es el argumento cuantitativo para diseñar motores de ejecución agéntica
+    que reparen en caliente.
     """
     df = cargar("principal") if df is None else df
     medias = (
@@ -141,7 +142,11 @@ def _media(df: pd.DataFrame, politica: Policy, metrica: str = "utilidad_neta") -
 
 
 def controles(principal: pd.DataFrame | None = None) -> pd.DataFrame:
-    """Los tres controles de sanidad de ``docs/02-design.md`` §9, evaluados.
+    """Los controles de sanidad de ``info/02-design.md`` §9 evaluables sobre los CSV.
+
+    Son el 1, 2 y 3, más el 6 (``GOVERNED`` con ``B=0`` ≡ ``OPEN_LOOP``), que es
+    consecuencia directa de la regla de costo: el presupuesto solo acota las reparaciones
+    proactivas, y las forzadas por un fallo se pagan igual en toda política.
 
     Ninguna figura vale nada si estos no pasan, así que se miran primero. Un control cuyo
     barrido no se haya corrido sale como ``NO EVALUABLE`` con el comando que lo genera —
@@ -207,6 +212,46 @@ def controles(principal: pd.DataFrame | None = None) -> pd.DataFrame:
                 "esperado": esperado,
                 "observado": obs,
                 "estado": "PASA" if ok else "FALLA",
+            }
+        )
+
+    # 6. B=0 ⇒ GOVERNED ≡ OPEN_LOOP, corrida a corrida (misma semilla, mismos parámetros).
+    titulo = "6. B=0 ⇒ GOVERNED = OPEN_LOOP"
+    try:
+        df = cargar("control4")
+    except FileNotFoundError:
+        filas.append(
+            {
+                "control": titulo,
+                "esperado": "igualdad exacta por corrida",
+                "observado": "falta results/control4.csv",
+                "estado": "NO EVALUABLE",
+            }
+        )
+    else:
+        claves = ["rng", "lambda_dinamismo", "costo_edicion"]
+        metricas = [
+            "entregas",
+            "utilidad_neta",
+            "pasos_deliberando",
+            "n_ediciones",
+            "tareas_fallidas",
+        ]
+        a = df[df.politica == str(Policy.OPEN_LOOP)].set_index(claves)[metricas]
+        g = df[df.politica == str(Policy.GOVERNED)].set_index(claves)[metricas]
+        a, g = a.sort_index(), g.sort_index()
+        iguales = a.index.equals(g.index) and bool((a.values == g.values).all())
+        filas.append(
+            {
+                "control": titulo,
+                "esperado": "igualdad exacta por corrida",
+                "observado": (
+                    f"{len(a)} pares, {int((a.values != g.values).any(axis=1).sum())} "
+                    f"distintos; {g.utilidad_neta.mean():.1f} vs {a.utilidad_neta.mean():.1f}"
+                    if a.index.equals(g.index)
+                    else "las corridas no se emparejan"
+                ),
+                "estado": "PASA" if iguales else "FALLA",
             }
         )
 
@@ -330,7 +375,7 @@ def fig_frontera(backend: Backend | None = None) -> Any:
 
 
 def fig_hot_vs_cold(backend: Backend | None = None) -> Any:
-    """Cuánto vale implementar ``run=hot``: CLOSED_LOOP − COLD_RESTART."""
+    """Cuánto vale reparar en caliente en vez de reiniciar en frío (CLOSED − COLD)."""
     d = delta_hot_vs_cold()
     tidy = pd.concat(
         [
@@ -351,7 +396,7 @@ def fig_hot_vs_cold(backend: Backend | None = None) -> Any:
     )
     return lineas(
         tidy,
-        titulo="Costo de no implementar run=hot (CLOSED_LOOP − COLD_RESTART)",
+        titulo="En caliente vs. en frío (CLOSED_LOOP − COLD_RESTART)",
         xlab="λ (dinamismo)",
         ylab="diferencia",
         faceta_lab="c",
@@ -375,7 +420,7 @@ def fig_competencia(backend: Backend | None = None) -> Any:
 def fig_observabilidad(
     metrica: str = "latencia_deteccion", backend: Backend | None = None
 ) -> Any:
-    """El efecto del set ``ignore`` de OASys: ver menos, enterarse más tarde."""
+    """El efecto de la observabilidad parcial: ver menos, enterarse más tarde."""
     df = cargar("observabilidad")
     return lineas(
         agregar(df, x="lambda_dinamismo", metrica=metrica, serie="radio", faceta="politica"),
@@ -458,7 +503,7 @@ def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--figuras", action="store_true", help="exportar todas las figuras")
     parser.add_argument("--controles", action="store_true", help="tabla de sanidad")
-    parser.add_argument("--delta", action="store_true", help="tabla hot vs cold")
+    parser.add_argument("--delta", action="store_true", help="tabla caliente vs. frío")
     parser.add_argument(
         "--backend", choices=("mpl", "plotly"), default=BACKEND, help="motor de dibujo"
     )

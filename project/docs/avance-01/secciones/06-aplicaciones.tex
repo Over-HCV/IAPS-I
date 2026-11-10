@@ -11,11 +11,11 @@ trabajado, señalando su utilidad en contextos reales.}
 
 \begin{description}[leftmargin=1.4em]
 
-\item[Diseño de motores de ejecución agéntica.] La aplicación directa se da en OASys,
-pues la frontera medida en $(\lambda, c)$ decide si se implementa la aplicación en
-caliente de ediciones, con qué presupuesto se reemplaza el máximo de iteraciones fijado
-a mano y cuándo la gobernanza (presupuesto $B$ más líneas inmutables) supera a la
-supervisión humana por aprobación. La misma lógica aplica a orquestadores de agentes LLM
+\item[Diseño de motores de ejecución agéntica.] La aplicación directa se da en el motor que
+motiva el proyecto, pues la frontera medida en $(\lambda, c)$ decide si conviene habilitar
+la reparación en caliente, con qué presupuesto se reemplaza el máximo de iteraciones fijado
+a mano y cuándo la gobernanza (un presupuesto $B$ de ediciones) supera a
+la supervisión humana por aprobación. La misma lógica aplica a orquestadores de agentes LLM
 genéricos, que hoy fijan por intuición cuándo replanificar.
 
 \item[Presupuestos de deliberación con LLM.] Representar al LLM como un oráculo de
@@ -32,15 +32,16 @@ versión medible y reproducible de ese compromiso que resulta útil como banco d
 docente.
 
 \item[Gobernanza de agentes que se modifican a sí mismos.] Un agente que reescribe su
-propio programa con líneas protegidas y presupuesto de ediciones es un caso mínimamente
+propio programa con un alcance de edición acotado (una porción del plan que no puede
+modificar) y un presupuesto de ediciones es un caso mínimamente
 viable del problema general de alinear un agente automodificante: Qué parte de sí mismo
 no debería poder tocar y cuántas veces conviene dejarlo intentarlo. Que el problema no es
 hipotético lo documentaron los propios autores de The AI Scientist, cuyo agente editó su
 código para extenderse el límite de tiempo que lo acotaba y en otra corrida se relanzó a sí
 mismo \parencite{lu2024aiscientist}, de forma que la restricción escrita en el programa
 resultó ser justamente lo que el programa podía reescribir. El agente gobernado de este
-experimento mide qué tan costoso sale proteger esa frontera, pues el presupuesto $B$ y las
-acciones inmutables son la versión medible de la pregunta por cuánta autoridad se le delega
+experimento mide qué tan costoso sale proteger esa frontera, pues el presupuesto $B$ (sumado
+al alcance de edición acotado que comparten todas las arquitecturas que replanifican) es la versión medible de la pregunta por cuánta autoridad se le delega
 a un agente sobre su propia especificación.
 
 \end{description}

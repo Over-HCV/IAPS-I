@@ -1,15 +1,12 @@
-"""El plan como programa: réplica mínima del Book de OASys.
+"""El plan como programa editable: una secuencia de líneas y un contador de programa.
 
-OASys organiza un programa como ``Device -> Books -> Pages -> Lines -> Cells`` y lo
-ejecuta con un contador de programa (``PageRunner { line_idx, cell_idx, call_stack }``
-en ``backend/src/engine/scheduler/mod.rs``). Aquí se conserva lo mínimo que hace falta
-para estudiar la auto-edición: una secuencia de líneas y un contador.
+Se conserva lo mínimo que hace falta para estudiar la auto-edición: el agente ejecuta
+el plan línea a línea y puede reescribir la parte que aún no ha ejecutado.
 
-En vocabulario de Russell & Norvig un Book es un **plan**, y ``replace_suffix`` es la
-operación de **replanificación** (cap. 11, §11.5.3). El atributo ``locked`` de una línea
-es el análogo de ``@lock`` en OASys, cuya invariante impone
-``agent::tools::governance::validate_edit``: toda construcción bloqueada debe seguir
-siendo idéntica después de la edición.
+En vocabulario de Russell & Norvig la clase ``Book`` es un **plan**, y ``replace_suffix``
+es la operación de **replanificación** (cap. 11, §11.5.3). El atributo ``locked`` de una
+línea la deja fuera del **alcance de edición** del agente: puede reescribir el resto del
+plan, pero toda línea bloqueada debe seguir siendo idéntica después de la edición.
 """
 
 from __future__ import annotations
@@ -38,8 +35,8 @@ class LineOp(StrEnum):
 class EditRejected(Exception):
     """La edición propuesta viola una invariante del plan.
 
-    Equivalente al fallo de ``validate_edit`` en OASys, donde una edición que toca una
-    construcción bloqueada se rechaza entera y no deja el plan a medias.
+    Ocurre cuando la edición reescribe líneas ya ejecutadas o toca líneas fuera del
+    alcance de edición del agente. Se rechaza entera y no deja el plan a medias.
     """
 
 
@@ -47,7 +44,8 @@ class EditRejected(Exception):
 class Line:
     """Una instrucción del plan.
 
-    Es inmutable a propósito: una línea bloqueada no puede alterarse ni siquiera por
+    ``locked`` marca una línea fuera del alcance de edición del agente. La línea es
+    inmutable a propósito: una línea bloqueada no puede alterarse ni siquiera por
     accidente, y toda edición obliga a construir líneas nuevas.
     """
 
@@ -58,7 +56,7 @@ class Line:
 
 @dataclass(slots=True)
 class Book:
-    """Un plan con su contador de programa.
+    """El plan, representado como programa editable de líneas, con su contador.
 
     Attributes:
         lines: las instrucciones, en orden de ejecución.
@@ -92,16 +90,15 @@ class Book:
         self.pc += 1
 
     def replace_suffix(self, from_idx: int, new_lines: list[Line]) -> None:
-        """Reemplazar el plan desde ``from_idx`` — el análogo de ``editBook``.
+        """Reescribir el plan desde ``from_idx``: la edición del plan por el agente.
 
         La edición se acepta o se rechaza entera; nunca deja el plan a medias. Se
         rechaza en dos casos:
 
         1. ``from_idx`` es anterior al contador de programa. Reescribir el pasado no
            tiene sentido: esas líneas ya se ejecutaron y sus efectos ya ocurrieron.
-        2. La edición altera las líneas bloqueadas. La comprobación replica la de
-           OASys (``collect_locked_renders(old) != collect_locked_renders(new)`` en
-           ``backend/src/agent/tools/governance.rs``): lo que debe conservarse es el
+        2. La edición altera las líneas fuera del alcance de edición. Se compara
+           :meth:`locked_render` antes y después: lo que debe conservarse es el
            *contenido* de lo bloqueado y su orden, no su posición. Un sufijo puede por
            tanto reescribirse aunque contenga líneas bloqueadas, siempre que las
            reproduzca intactas — que es justo lo que permite reparar la ruta hacia un
@@ -141,10 +138,9 @@ class Book:
     def locked_render(self) -> list[Line]:
         """Contenido de las líneas bloqueadas, en orden.
 
-        Análogo de ``collect_locked_renders`` en OASys
-        (``backend/src/agent/tools/governance.rs``), que compara el render de las
-        construcciones bloqueadas antes y después de un ``editBook``. Se compara el
-        contenido y el orden, no el índice: una línea bloqueada puede desplazarse si
+        Es la parte del plan fuera del alcance de edición, que :meth:`replace_suffix`
+        compara antes y después de cada edición. Se compara el contenido y el orden,
+        no el índice: una línea bloqueada puede desplazarse si
         el sufijo que la precede cambia de longitud.
         """
         return [ln for ln in self.lines if ln.locked]
@@ -154,7 +150,7 @@ def goto_lines(path: list[Any], *, locked: bool = False) -> list[Line]:
     """Convertir una ruta en líneas ``GOTO``.
 
     Acepta celdas o coordenadas, y almacena siempre **coordenadas**. La distinción
-    importa: un plan es dato, igual que el fuente ``.os`` de OASys, y no debe guardar
+    importa: un plan es dato, igual que el código fuente de un programa, y no debe guardar
     referencias vivas al mundo. Guardar celdas ataría el plan a la instancia concreta
     del modelo y haría imposible serializarlo o compararlo.
 

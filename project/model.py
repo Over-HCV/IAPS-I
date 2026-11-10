@@ -1,7 +1,7 @@
 """El entorno: retícula con recursos que derivan y un agente que los recoge.
 
 La especificación formal (PEAS, clasificación del entorno, métricas) está en
-``docs/02-design.md``. Este módulo la implementa.
+``info/02-design.md``. Este módulo la implementa.
 """
 
 from __future__ import annotations
@@ -29,12 +29,14 @@ class OASysWorld(Model):
         n_resources: recursos simultáneos en el mundo.
         capacidad: recursos que el agente debe reunir antes de entregar. Es lo que crea
             *trabajo en vuelo*, sin el cual un reinicio en frío no pierde nada y la
-            comparación ``cold`` contra ``hot`` se vacía.
+            comparación entre reinicio en frío y reparación en caliente se vacía.
         lambda_dinamismo: probabilidad por tick de que un recurso se desplace.
         competencia: probabilidad ``p`` de que el oráculo proponga la reparación óptima.
         costo_edicion: ticks ``c`` que consume cada deliberación.
         radio: radio de observación. ``None`` = observabilidad total.
-        presupuesto: ediciones permitidas. ``None`` = ilimitadas.
+        presupuesto: reparaciones proactivas permitidas (solo ``GOVERNED``). ``None`` =
+            ilimitadas; ``0`` = ninguna, con lo que ``GOVERNED`` equivale a ``OPEN_LOOP``.
+            Las replanificaciones forzadas por un fallo no lo consumen.
         kappa: precio por tick de deliberación, para la utilidad neta.
         valor_entrega: valor de cada entrega, para la utilidad neta.
         densidad_obstaculos: fracción de celdas bloqueadas.
@@ -143,7 +145,7 @@ class OASysWorld(Model):
         que el orden dependiera del hash de los objetos —es decir, de direcciones de
         memoria— y con él el resultado de cada ``random.choice`` sobre esta lista. Las
         corridas dejarían de ser reproducibles con la misma semilla, que es el control
-        de sanidad nº 4 de ``docs/02-design.md``.
+        de sanidad nº 4 de ``info/02-design.md``.
         """
         vistos = {self.base}
         cola = deque([self.base])
@@ -274,6 +276,7 @@ REPORTERS = {
     "pasos_deliberando": lambda m: _c(m).pasos_deliberando,
     "n_ediciones": lambda m: _c(m).n_ediciones,
     "n_ediciones_desperdiciadas": lambda m: _c(m).n_ediciones_desperdiciadas,
+    "n_ediciones_por_fallo": lambda m: _c(m).n_ediciones_por_fallo,
     "divergencias_reales": lambda m: m.divergencias_reales,
     "divergencias_detectadas": lambda m: m.divergencias_detectadas,
     "tareas_fallidas": lambda m: _c(m).tareas_fallidas,
@@ -292,4 +295,4 @@ REPORTERS = {
         m.valor_entrega * _c(m).entregas - m.kappa * _c(m).pasos_deliberando
     ),
 }
-"""Reporters de modelo. Las definiciones operacionales están en ``docs/02-design.md`` §4."""
+"""Reporters de modelo. Las definiciones operacionales están en ``info/02-design.md`` §4."""

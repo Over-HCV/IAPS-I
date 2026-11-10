@@ -7,14 +7,20 @@ crear un documento nuevo es crear una carpeta que cuelgue de aquí.
 common/          preamble.tex, macros.tex, meta-es.tex — compartido por TODO documento
 bib/refs.bib     bibliografía única (citar siempre desde aquí, nunca crear otro .bib)
 assets/pics/     logo UR compartido
-avance/          Avance de Proyecto 1 (calificado como quiz)
+avance-01/       Avance de Proyecto 1 en LaTeX (calificado como quiz)
+avance-02/       Avance de Proyecto 2: cuaderno autocontenido (avance-02.ipynb), no usa el template
+guion/           guion de trabajo y anexo de planificación clásica (no son entregables)
 final/           documento final del proyecto (por crear)
 ```
 
+Cabe mencionar que `avance-02/` es la excepción a la regla, pues se entrega como un cuaderno
+Jupyter con una versión simplificada del modelo y no como un documento LaTeX, por lo que no
+lleva `Makefile` ni `main-es.tex`.
+
 ## Cómo crear un documento nuevo (p. ej. `final/`)
 
-1. Copiar de `avance/`: `Makefile`, `.latexmkrc`, `.gitignore` (los tres intactos).
-2. Crear `main-es.tex` calcado del del avance: cambia `\docNombre` y la lista de
+1. Copiar de `avance-01/`: `Makefile`, `.latexmkrc`, `.gitignore` (los tres intactos).
+2. Crear `main-es.tex` calcado del de `avance-01/`: cambia `\docNombre` y la lista de
    `\input` de secciones. Nada más — el preámbulo, los macros y los metadatos vienen
    de `../common/`.
 3. Crear `secciones/` y, si se quiere conteo por sección, `wordlimits.txt`.
@@ -28,6 +34,6 @@ final/           documento final del proyecto (por crear)
 - `make es` compila borrador; `make es FINAL=1` oculta las cajas `\limite`/`\nota`;
   `make watch` recompila en vivo; `make wordcount` cuenta por sección.
 - La consigna oficial de cada entregable vive como `intro.md` dentro de su carpeta
-  (la del avance es la del curso). Si la consigna cambia, ese archivo manda.
+  (la de `avance-01/` es la del curso). Si la consigna cambia, ese archivo manda.
 - Entradas bibliográficas: reutilizar las de `bib/refs.bib`; las que vengan del repo
   de Tesis-MACC se copian verbatim y se marca el origen en un comentario.

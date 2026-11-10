@@ -2,7 +2,7 @@
 
 ``analysis.fig_trayectoria`` dibuja el **resultado** de una corrida —la traza sobre la
 retícula— y con eso se pierde justo lo que el trabajo mide: cuándo nace una divergencia
-entre el plan y el mundo, cuándo el agente la nota, qué sufijo del Book se reescribe y
+entre el plan y el mundo, cuándo el agente la nota, qué sufijo del plan se reescribe y
 cuántos ticks se van en deliberar en vez de actuar. Este módulo reconstruye esa película.
 
 Igual que ``analysis``, separa las dos capas a propósito:
@@ -18,7 +18,7 @@ diferencial de contadores y del avance del contador de programa.
 
 Uso en el cuaderno::
 
-    from oasys_abm import animacion as anim
+    from project import animacion as anim
 
     anim.MODO = "animacion"          # o "estatico" para la figura de siempre
     anim.mostrar(policy="CLOSED_LOOP", lambda_dinamismo=0.25, pasos=80)
@@ -47,7 +47,7 @@ ACCIONES = ("GOTO", "PICK", "DELIVER", "SCAN", "DELIBERAR", "FALLO", "ESPERA", "
 """Etiquetas posibles de :attr:`Frame.accion`."""
 
 ESPACIO_DE_ACCIONES = ("GOTO", "PICK", "DELIVER", "DELIBERAR")
-"""Los actuadores del PEAS (``docs/02-design.md`` §2), en el orden en que se dibujan."""
+"""Los actuadores del PEAS (``info/02-design.md`` §1), en el orden en que se dibujan."""
 
 FLASH = 4
 """Frames que sigue resaltado el sufijo reescrito tras una edición."""
@@ -91,7 +91,8 @@ class Frame:
         objetivo: ``rid`` del recurso que persigue el plan.
         carrying: recursos en transporte (el trabajo en vuelo que un reinicio pierde).
         ruta: coordenadas de los ``GOTO`` que quedan por ejecutar.
-        lineas: el Book entero como ``(op, arg, locked)``.
+        lineas: el plan entero como ``(op, arg, locked)``; ``locked`` marca las líneas
+            fuera del alcance de edición del agente.
         pc: contador de programa.
         accion: qué se ejecutó en este tick (una de :data:`ACCIONES`).
         deliberando: ``(elapsed, duration)`` si hay una deliberación en curso.
@@ -124,7 +125,7 @@ class Frame:
 def _estado(modelo: OASysWorld) -> dict[str, Any]:
     """Fotografía de los contadores y del plan, para diferenciar contra el tick siguiente.
 
-    Las líneas del Book se copian a una tupla: ``Book.lines`` es una lista que
+    Las líneas del plan se copian a una tupla: ``Book.lines`` es una lista que
     ``replace_suffix`` reescribe en sitio, así que guardar la referencia daría siempre
     el estado de después y no habría diferencia que medir.
     """
@@ -160,7 +161,7 @@ def _accion(antes: dict[str, Any], ahora: dict[str, Any], policy: Policy) -> str
     El orden de las comprobaciones es el del propio ``Collector.step``: primero lo que
     consume el tick entero (deliberar), luego el fallo que aborta el plan, luego la línea
     que avanzó el contador de programa. Lo último es la inferencia por efectos, que es lo
-    único disponible para las políticas reactivas: no tienen Book donde mirar.
+    único disponible para las políticas reactivas: no tienen plan donde mirar.
     """
     if ahora["deliberando"] > antes["deliberando"]:
         return "DELIBERAR"
@@ -179,14 +180,15 @@ def _accion(antes: dict[str, Any], ahora: dict[str, Any], policy: Policy) -> str
 
 
 def _edicion(antes: dict[str, Any], ahora: dict[str, Any]) -> tuple[str | None, int | None]:
-    """Deducir si hubo ``editBook`` en este tick y desde qué renglón.
+    """Deducir si el agente reescribió el plan en este tick y desde qué renglón.
 
     El renglón se saca del diff del plan y no de ``Deliberation.from_idx``: con ``c = 0``
     la deliberación nace, se aplica y se destruye dentro del mismo tick, así que en el
-    snapshot previo no hay nada que leer.
+    estado capturado antes del tick no hay nada que leer.
 
     Una edición que sube ``n_ediciones`` y ``n_ediciones_desperdiciadas`` a la vez sin
-    tocar el plan es la que rechazó la gobernanza (``EditRejected`` en
+    tocar el plan es una que el plan rechazó por violar sus invariantes, típicamente por
+    tocar líneas fuera del alcance de edición (``EditRejected`` en
     ``agents._aplicar_en_caliente``).
     """
     cambio = _primer_cambio(antes["lineas"], ahora["lineas"])
@@ -250,7 +252,7 @@ def traza_corrida(pasos: int = 80, **kwargs: Any) -> tuple[OASysWorld, list[Fram
 
     Args:
         pasos: ticks a simular. Devuelve ``pasos + 1`` frames: el inicial y uno por tick.
-        **kwargs: cualquier parámetro de :class:`~oasys_abm.model.OASysWorld`
+        **kwargs: cualquier parámetro de :class:`~project.model.OASysWorld`
             (``policy``, ``lambda_dinamismo``, ``costo_edicion``, ``radio``, ``rng``…).
 
     Returns:
@@ -431,16 +433,17 @@ def _panel_grid(ax: Any, frames: list[Frame], i: int, modelo: OASysWorld) -> Non
 
 
 def _panel_book(ax: Any, frames: list[Frame], i: int, flash: tuple[int, str] | None) -> None:
-    """El plan como programa: el contador, lo bloqueado y el sufijo recién reescrito."""
+    """El plan como programa: el contador, las líneas fuera del alcance de edición y el
+    sufijo recién reescrito (verde si se aplicó, rojo si se rechazó)."""
     f = frames[i]
     ax.clear()
     ax.axis("off")
     ax.set_xlim(0, 1)
     ax.set_ylim(0, 1)
 
-    titulo = "Book (plan vivo)"
+    titulo = "Plan vivo"
     if f.edicion:
-        titulo += f"   ← editBook {f.edicion}"
+        titulo += f"   ← edición {f.edicion}"
     ax.set_title(titulo, fontsize=10, loc="left")
 
     if not f.lineas:
@@ -464,7 +467,7 @@ def _panel_book(ax: Any, frames: list[Frame], i: int, flash: tuple[int, str] | N
         y = 0.96 - fila * paso
         actual = idx == f.pc
         marca = "▶" if actual else " "
-        texto = f"{marca} {idx:>3}  {op:<7} {arg}" + ("   @lock" if locked else "")
+        texto = f"{marca} {idx:>3}  {op:<7} {arg}" + ("   [fuera de alcance]" if locked else "")
         color = C_AGENTE if actual else (C_LOCK if locked else "#333333")
         if idx < f.pc:
             color = "#aaaaaa"
@@ -645,7 +648,7 @@ def animar(
 
     No usa *blitting*: cada frame limpia y redibuja sus ejes. Es más lento de generar
     —unos segundos para 80 frames— pero es lo único que funciona cuando el contenido de
-    un panel es texto de longitud variable, como el Book.
+    un panel es texto de longitud variable, como el plan.
 
     Args:
         frames: salida de :func:`traza_corrida`.
@@ -736,7 +739,7 @@ def mostrar(pasos: int = 80, modo: Modo | None = None, cada: int = 1, **kwargs: 
         pasos: ticks a simular.
         modo: ``"animacion"`` o ``"estatico"``; por defecto :data:`MODO`.
         cada: decimación de frames en la animación.
-        **kwargs: parámetros de :class:`~oasys_abm.model.OASysWorld`.
+        **kwargs: parámetros de :class:`~project.model.OASysWorld`.
     """
     import matplotlib.pyplot as plt
 

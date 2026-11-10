@@ -4,7 +4,7 @@ Es la pieza conceptual del trabajo. En la mayoría de modelos basados en agentes
 es gratis: ocurre entre ticks y no consume nada. Aquí no. Deliberar es **una acción del
 mismo tipo que moverse**, ocupa ``duration`` ticks del reloj, y durante esos ticks el
 mundo sigue cambiando. Sin eso no hay costo que medir y la pregunta del trabajo se vuelve
-trivial (ver ``docs/02-design.md`` §1).
+trivial (ver ``info/02-design.md`` §1).
 
 De ahí se sigue la decisión de modelado más importante del módulo: **el plan que produce
 una deliberación se calcula con el mundo tal como estaba cuando la deliberación empezó.**
@@ -20,7 +20,7 @@ model.step()`` que no sabe nada de colas de eventos (``mesa/batchrunner.py:206``
 cola de eventos solo paga cuando los eventos son escasos, mientras que aquí cada agente
 actúa en cada tick. La clase ``Action`` de 4.0 queda descartada porque es justamente el
 objeto de estudio: importarla prehecha escondería el mecanismo que se quiere medir
-(ver ``docs/00-rationale.md`` §4).
+(ver ``info/00-rationale.md`` §4).
 """
 
 from __future__ import annotations
@@ -59,6 +59,10 @@ class Deliberation:
         elapsed: ticks consumidos hasta ahora.
         state: estado del ciclo de vida.
         label: etiqueta del tipo de propuesta, para las métricas.
+        por_fallo: True si la dispara un fallo del plan (replanificación forzada, que
+            toda política que planifica paga y que no consume presupuesto); False si
+            la dispara una divergencia detectada por el monitoreo (reparación
+            proactiva, la única que acota el presupuesto ``B``).
     """
 
     duration: int
@@ -67,6 +71,7 @@ class Deliberation:
     elapsed: int = 0
     state: DeliberationState = DeliberationState.ACTIVE
     label: str = ""
+    por_fallo: bool = False
 
     def __post_init__(self) -> None:
         """Una deliberación de duración cero nace ya terminada."""

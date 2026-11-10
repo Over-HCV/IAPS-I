@@ -1,9 +1,13 @@
 # Guion: cómo entender y comunicar el proyecto
 
 > Documento de trabajo (no va al paper): su función es resolver el problema de
-> comunicación — "OASys lo conozco yo" — anclando el proyecto en una clase pública
-> con instancias citables, de forma que el sistema propio quede como caso de
-> calibración y no como única evidencia. Todas las referencias de aquí fueron
+> comunicación — el motor de ejecución agéntica propio (OASys) "lo conozco yo" —
+> anclando el proyecto en una clase pública con instancias citables, de forma que
+> el sistema propio quede como caso de calibración y no como única evidencia. En
+> adelante se le llama simplemente *el sistema propio*: su vocabulario interno
+> cambia con cada versión, por lo que todo mecanismo se describe en términos de
+> planificación y agentes (plan, alcance de edición, reparación en frío o en
+> caliente, supervisión humana) y no con nombres de implementación. Todas las referencias de aquí fueron
 > verificadas contra arXiv el 25 de septiembre de 2026.
 
 ---
@@ -23,11 +27,13 @@
 > queda modelado como un oráculo abstracto con competencia p y costo c por
 > edición. Finalmente, al barrer el plano (λ, c) se localiza la frontera que
 > separa los regímenes donde conviene comprometerse con el plan estático de
-> aquellos donde conviene reescribirlo, que es el argumento cuantitativo que le
+> aquellos donde conviene reescribirlo (y, con dinamismo alto y deliberación
+> cara, de aquellos donde conviene no planificar en absoluto), que es el
+> argumento cuantitativo que le
 > falta a la clase emergente de agentes auto-evolutivos para decidir cuándo
 > evolucionar.
 
-Si quien escucha pregunta por el caso real, ahí sí entra OASys — como *instancia
+Si quien escucha pregunta por el caso real, ahí sí entra el sistema propio — como *instancia
 de calibración* de esa clase, nunca como única motivación.
 
 ---
@@ -43,11 +49,11 @@ Capa 1 (clase pública)     Agentes auto-evolutivos: "self-evolving agents"
                            ↓  ya tiene nombre, survey y agenda publicada
 Capa 2 (instancias)        Voyager, AFlow, AutoGPT, AI Scientist, SOAR…
                            ↓  cada una es citable y verificable por cualquiera
-Capa 3 (calibración)       OASys: el despliegue real donde la decisión
+Capa 3 (calibración)       Sistema propio: el despliegue real donde la decisión
                               "¿cuándo reescribir?" hoy se toma por intuición
 ```
 
-Con ese orden, el conocimiento privado deja de ser carga: OASys aporta el caso
+Con ese orden, el conocimiento privado deja de ser carga: el sistema propio aporta el caso
 real con parámetros medibles (λ y p de producción), y toda la evidencia que
 convence a un tercero es pública y reproducible (el experimento MESA).
 
@@ -63,7 +69,7 @@ literalmente el "when" de esa agenda**, y la respuesta que ofrece (una frontera
 medible en el plano (λ, c)) es de las pocas operationalizaciones que existen.
 
 Además, el mismo fenómeno tiene nombre en cada tradición, lo que permite hablar
-con audiencias distintas sin traducir OASys:
+con audiencias distintas sin traducir el vocabulario del sistema propio:
 
 - **Agentes LLM:** self-evolving agents (Gao et al. 2026), skill libraries
   (Wang et al. 2023, Voyager), workflow search (Zhang et al. 2024, AFlow).
@@ -89,7 +95,7 @@ La línea clásica se explica desde cero en `anexo-planning-clasico.md`.
 | Lazo abierto (plan estático) | Orquestadores deterministas (DAGs de producción: Airflow, n8n): el flujo no cambia aunque el mundo sí | R&N 2020 cap. 11 |
 | Reinicio en frío (abortar y replanificar) | **AFlow**: optimiza workflows como código pero *offline*; **ADAS**: un meta-agente programa agentes mejores en código (se pierde el trabajo en vuelo) | Zhang et al. 2024 (arXiv:2410.10762); Hu et al. 2024 (arXiv:2408.08435) |
 | Lazo cerrado (reparar en sitio, pagar c) | **AutoGPT** reescribe su plan-file en cada iteración; **Reflexion** reescribe su memoria verbal tras fallar; **AWM** induce workflows en línea; **SOAR** chunking | Shinn et al. 2023 (arXiv:2303.11366); Wang et al. 2024 (arXiv:2409.07429); Laird 2012 |
-| Gobernado (presupuesto B, líneas inmutables) | **The AI Scientist**: se documentó que editó su propio código para extenderse el límite de tiempo arbitrariamente y en otra corrida se relanzó a sí mismo (sección *Safe Code Execution*) | Lu et al. 2024 (arXiv:2408.06292) |
+| Gobernado (presupuesto B, alcance de edición acotado) | **The AI Scientist**: se documentó que editó su propio código para extenderse el límite de tiempo arbitrariamente y en otra corrida se relanzó a sí mismo (sección *Safe Code Execution*) | Lu et al. 2024 (arXiv:2408.06292) |
 | Oráculo con competencia p | **Voyager**: self-verification + reparación iterativa de sus propios programas (p < 1); **DreamCoder**: calidad de biblioteca aprendida | Wang et al. 2023 (arXiv:2305.16291); Ellis et al. 2021 (arXiv:2006.08381) |
 | Thrashing (`n_ediciones_desperdiciadas`) | Los bucles sin progreso de AutoGPT (famosos, documentados por la comunidad, sin paper formal) | — (nota honesta: evidencia anecdótica) |
 
@@ -113,8 +119,9 @@ controlada de un sistema que ya existe en público.
 > donde el agente reescribe precisamente las restricciones que lo acotaban (Lu
 > et al. 2024), con el pequeño detalle de que la pregunta por el cuándo sigue
 > abierta en la propia agenda de la clase (el "when" de Gao et al. 2026).
-> Finalmente, en un despliegue real (OASys) dicha decisión descansa hoy en
-> constantes escritas a mano y en la aprobación humana, de forma que este
+> Finalmente, en un despliegue real (un motor de ejecución agéntica propio)
+> dicha decisión descansa hoy en constantes escritas a mano y en la supervisión
+> humana, de forma que este
 > proyecto la convierte en una frontera medible en el plano (λ, c), con la
 > competencia p, el presupuesto B y el precio κ como desplazadores.
 
@@ -138,8 +145,8 @@ Ese párrafo reemplazaría (o abriría) la sección *Motivación* de
 - **"AutoGPT/Voyager ya hacen esto"** — Sí lo hacen; lo que nadie ha hecho es
   medir cuándo conviene, y esa es la brecha que la propia clase reconoce como
   abierta (el "when" del survey).
-- **"OASys es tuyo, ¿cómo lo verifico?"** — No hace falta verificarlo: OASys
-  es la motivación y la calibración, toda la evidencia es el experimento
+- **"El sistema es tuyo, ¿cómo lo verifico?"** — No hace falta verificarlo: el
+  sistema propio es la motivación y la calibración, toda la evidencia es el experimento
   reproducible más las instancias públicas citables.
 - **"¿Qué aporta frente al survey de self-evolving agents?"** — El survey
   taxonomiza mecanismos (what/how); este proyecto entrega la frontera (λ, c)
@@ -163,7 +170,7 @@ dejó fuera a propósito, de forma que el documento siga siendo veraz.
    Synthesis with Wake-Sleep Library Learning*, págs. 835–850, mientras que el título con
    *Growing Generalizable…* corresponde al preprint de arXiv de 2020).
 2. **`secciones/01-contexto.tex`** — *Motivación* se reescribió con el patrón de tres capas
-   del §5 y OASys quedó como instancia de calibración, con una nota explícita de que no es
+   del §5 y el sistema propio quedó como instancia de calibración, con una nota explícita de que no es
    evidencia. Se añadió la subsección **Antecedentes** con la línea clásica del
    `anexo-planning-clasico.md` (Samuel, Brooks, SOAR, Nebel y Koehler, Fox et al., D\* Lite,
    ARA\*, Gödel machines) y *Relevancia* abre ahora por la dimensión *when* de la clase.
@@ -190,4 +197,38 @@ Resultado: el avance pasó de 8 a 12 páginas y de 2.347 a 2.202 palabras contad
 - AutoGPT se menciona en prosa como práctica difundida, sin entrada `.bib`, porque no tiene
   publicación arbitrada.
 - El conteo de corridas del proyecto se corrigió de 6.240 a **8.100** (suma real de los CSV
-  en `project/results/`), dato que estaba mal en el avance y en el notebook.
+  en `project/results/`), dato que estaba mal en el avance y en el notebook (tras la
+  corrección del 2026-10-09 el total es **8.640**, ver abajo).
+
+**Desacople de vocabulario (2026-10-08):** el avance y este guion dejaron de describir
+mecanismos con nombres internos del sistema propio, cuyo vocabulario ya cambió (el
+bloqueo de líneas, por ejemplo, se reemplazó por alcance de edición: el agente no
+puede modificar lo que no tiene en su contexto). Primeramente, en `01-contexto.tex` el
+modo de aplicación inmediata dejó de citarse por su bandera y pasó a decirse que la
+reparación en caliente todavía no está disponible, de modo que las ediciones surten
+efecto en la ejecución siguiente; progresivamente, en `02-agentes.tex`,
+`03-variables.tex` y `06-aplicaciones.tex` las "acciones inmutables" o "líneas
+protegidas" del agente gobernado pasaron a ser un **alcance de edición acotado** y "el
+modo actual del sistema real" pasó a ser "los sistemas que aplican ediciones en la
+ejecución siguiente"; finalmente, el sistema se nombra una sola vez (como instancia de
+calibración) y la estructura, las tablas y las citas del avance quedaron intactas.
+
+**Corrección de la regla de costo (2026-10-09):** el modelo tenía un sesgo de equidad, pues
+el lazo abierto replanificaba gratis tras un fallo del plan (A\* exacto, 0 ticks) mientras
+que el lazo cerrado pagaba `c` ticks y pasaba por el oráculo ruidoso de competencia `p`, de
+forma que el experimento comparaba una reparación pagada contra una gratuita. Primeramente,
+se corrigió la regla, de modo que toda replanificación disparada por un fallo o por una
+divergencia detectada pasa por el mismo oráculo y cuesta `c` en todas las políticas que
+planifican (los planes de rutina siguen siendo gratuitos y el presupuesto `B` acota solo las
+reparaciones proactivas, por lo que `GOVERNED` con `B=0` es idéntico a `OPEN_LOOP`, que es un
+control exacto nuevo); progresivamente, se re-corrieron las **8.640** corridas, lo cual cambió
+la lectura: con `r=3` la dominancia del lazo abierto casi desaparece (la diferencia entre lazo
+abierto y lazo cerrado queda entre −9.0 y +25.7 según la celda), con λ alto y `c≥2` la mejor
+política pasa a ser `MODEL_BASED` (reactiva con creencias, que nunca paga deliberación) y la
+mayor parte del "rescate por gobernanza" resultó ser un artefacto (a λ=0.5, `B=3` rinde 23.7,
+`B=0` rinde 27.0 y `CLOSED_LOOP` 10.0); finalmente, en el Avance 1 solo se ajustó la última
+frase de *Relevancia*, que atribuía a la observabilidad un peso que los datos corregidos ya no
+sostienen (con radio corto el lazo abierto y el cerrado casi empatan en promedio, 48.0 contra
+47.9 con `r=1`, y con visión completa la ventaja del lazo abierto es moderada, 129.5 contra
+114.5), mientras que este guion no cita cifras de resultados y solo ganó la precisión del
+pitch sobre el régimen donde conviene no planificar.

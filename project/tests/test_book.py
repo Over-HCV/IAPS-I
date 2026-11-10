@@ -1,9 +1,8 @@
 """Invariantes del plan y de la operación de edición.
 
-Verifican que ``Book.replace_suffix`` reproduce la semántica de ``editBook`` en OASys:
+Verifican la semántica de ``Book.replace_suffix``, la edición del plan por el agente:
 una edición se acepta o se rechaza entera, no puede reescribir el pasado, y debe dejar
-las líneas bloqueadas intactas (``validate_edit`` en
-``backend/src/agent/tools/governance.rs``).
+intactas las líneas bloqueadas, que están fuera del alcance de edición del agente.
 """
 
 from project.book import Book, EditRejected, Line, LineOp, goto_lines

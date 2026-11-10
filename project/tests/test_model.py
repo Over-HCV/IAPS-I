@@ -1,4 +1,4 @@
-"""Controles de sanidad del experimento (``docs/02-design.md`` §9).
+"""Controles de sanidad del experimento (``info/02-design.md`` §9).
 
 No comprueban que el código no reviente, sino que el modelo se comporta como la teoría
 exige. Si alguno falla, los resultados del barrido no significan nada.
@@ -135,7 +135,12 @@ def test_el_radio_de_vision_retrasa_la_deteccion() -> None:
 
 @pytest.mark.parametrize("presupuesto", [0, 3, 10])
 def test_el_presupuesto_de_ediciones_se_respeta(presupuesto: int) -> None:
-    """La cuota de ediciones es una cota dura, como la de energía en OASys."""
+    """El presupuesto ``B`` es una cota dura sobre las reparaciones proactivas.
+
+    Las replanificaciones forzadas por un fallo cuentan en ``n_ediciones`` —son
+    reescrituras del plan— pero no consumen presupuesto, porque no se pueden evitar: por
+    eso la cota se comprueba sobre la diferencia.
+    """
     for s in SEMILLAS:
         m = correr(
             Policy.GOVERNED,
@@ -143,7 +148,8 @@ def test_el_presupuesto_de_ediciones_se_respeta(presupuesto: int) -> None:
             lambda_dinamismo=0.4,
             presupuesto=presupuesto,
         )
-        assert m.collector.n_ediciones <= presupuesto
+        c = m.collector
+        assert c.n_ediciones - c.n_ediciones_por_fallo <= presupuesto
 
 
 def test_gobernanza_ilimitada_equivale_a_lazo_cerrado() -> None:
@@ -166,11 +172,11 @@ def test_la_gobernanza_rescata_en_entorno_muy_dinamico() -> None:
     assert acotado > libre
 
 
-# --------------------------------------------------------------- cold vs hot
+# ------------------------------------------------------- en frío vs. en caliente
 
 
 def test_el_reinicio_en_frio_pierde_trabajo_en_vuelo() -> None:
-    """La diferencia entre ``cold`` y ``hot``: el frío suelta lo que llevaba encima."""
+    """La diferencia entre frío y caliente: el reinicio suelta lo que llevaba encima."""
     perdidas = [
         correr(Policy.COLD_RESTART, rng=s, lambda_dinamismo=0.4).collector.carga_perdida
         for s in range(20)

@@ -113,8 +113,8 @@ Primeramente se abre con la clase (self-evolving agents, survey TMLR 2026) y su
 pregunta abierta (el "when"); progresivamente se muestra que la clase tiene
 historia (Samuel, SOAR, Fox, D* Lite, Gödel), de forma que el proyecto queda
 como la medición moderna de una pregunta clásica y no como una moda de LLMs; y
-finalmente OASys entra como la instancia de producción que hoy decide esa
-pregunta por intuición, que es exactamente el vacío que la frontera (λ, c) llena.
+finalmente el sistema propio (OASys) entra como la instancia de calibración que hoy
+decide esa pregunta por intuición, que es exactamente el vacío que la frontera (λ, c) llena.
 
 ---
 
@@ -184,3 +184,16 @@ no *Anytime Replanning*) y el título de la versión PLDI de DreamCoder
 título con *Growing Generalizable…* es el del preprint de arXiv de 2020). Samuel
 (210–229) y Brooks (139–159) quedaron confirmados sin cambio. La fuente de verdad
 es ahora `bib/refs.bib`, no este bloque.)
+
+(Nota de estado, 2026-10-09: el modelo corrigió un sesgo en su regla de costo, pues el lazo
+abierto replanificaba gratis y con A\* exacto tras un fallo del plan, mientras que el lazo
+cerrado pagaba `c` ticks y pasaba por el oráculo de competencia `p`; hoy toda replanificación
+disparada por un fallo o por una divergencia detectada pasa por el mismo oráculo y cuesta `c`,
+y las 8.640 corridas se re-ejecutaron. Este anexo no cita cifras de resultados, por lo que
+ninguna afirmación suya caducó, aunque dos anclas ganan peso con la corrección: la advertencia
+de Nebel y Koehler queda escrita en el propio modelo (ninguna reparación es gratis, tampoco la
+del lazo abierto tras un fallo), y la línea reactiva que Brooks defendía deja de ser solo una
+línea base, dado que con dinamismo alto y `c≥2` la mejor política medida pasa a ser
+`MODEL_BASED`, que actúa sin plan y nunca paga deliberación (con el matiz de que, a diferencia
+del reflejo de Brooks, sí guarda creencias, por lo que respalda la mitad "sin plan" de su
+tesis y no la mitad "sin representación"). El detalle está en `guion.md` §7.)

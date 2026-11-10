@@ -31,7 +31,7 @@ desde qué calidad del replanificador vale la pena auto-editarse \\ \sepfilas
 $c$ & Costo de edición & Ticks que ocupa una deliberación. Es el precio de replanificar
 (con $\lambda$ define el punto de cruce de la pregunta de investigación) \\ \sepfilas
 $r$ & Radio de visión & Observabilidad parcial: Solo se ve dentro del radio. Modela qué
-parte del programa conoce el agente en el sistema real \\ \sepfilas
+parte del entorno tiene el agente en su contexto \\ \sepfilas
 $B$ & Presupuesto & Ediciones permitidas al agente gobernado ($B=\infty$ lo apaga).
 Prueba si acotar la replanificación la mejora \\ \sepfilas
 $\kappa$ & Precio de deliberar & Costo adicional por tick pensando (tokens, dinero).
@@ -57,7 +57,7 @@ frontera, mientras que $p$, $r$, $B$ y $\kappa$ la desplazan.}
 ejecutar $k$ líneas, más deliberaciones interrumpidas. Es la medida operacional del
 \emph{thrashing}: Replanificar sin avanzar \\ \sepfilas
 \texttt{carga\_perdida} & Recursos soltados por un reinicio en frío. Es el trabajo en
- vuelo que el modo actual del sistema real descarta y que el modo caliente conservaría \\ \sepfilas
+ vuelo que se descarta cuando las ediciones aplican en la ejecución siguiente y que la reparación en caliente conservaría \\ \sepfilas
 \texttt{divergencias\_reales/detectadas} & Veces que el plan dejó de ser válido en el
 mundo contra las que el agente percibió. Su emparejamiento acota la medición y evita
 contar detecciones espurias \\ \sepfilas
@@ -72,4 +72,4 @@ divergencias, sino que llega tarde a ellas \\
 utilidad neta ordena las políticas y el resto explica por qué.}
 \end{table}
 
-% \nota{En el documento final, estas tablas se reemplazan por los resultados del barrido (8.100 corridas ya ejecutadas en \texttt{project/results/}); el avance solo declara qué se sigue y por qué.}
+% \nota{En el documento final, estas tablas se reemplazan por los resultados del barrido (8.640 corridas ya ejecutadas en \texttt{project/results/}); el avance solo declara qué se sigue y por qué.}

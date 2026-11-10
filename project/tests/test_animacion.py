@@ -1,7 +1,7 @@
 """La traza tick a tick debe decir la verdad sobre la corrida que dibuja.
 
-``animacion`` deduce lo que el modelo no guarda —qué acción se ejecutó, si hubo
-``editBook`` y desde qué renglón— comparando el estado antes y después de cada
+``animacion`` deduce lo que el modelo no guarda —qué acción se ejecutó, si se
+reescribió el plan y desde qué renglón— comparando el estado antes y después de cada
 ``step``. Si esa deducción se desalinea del modelo, la película miente, y miente de
 forma convincente. Estos tests la anclan a los contadores del propio ``Collector``.
 """
@@ -58,7 +58,7 @@ def test_toda_accion_esta_en_el_espacio_de_acciones(policy: str) -> None:
 
 
 def test_el_contador_de_programa_nunca_sale_del_plan() -> None:
-    """``pc`` apunta dentro del Book o justo detrás de la última línea."""
+    """``pc`` apunta dentro del plan o justo detrás de la última línea."""
     _, frames = traza()
     assert all(0 <= f.pc <= len(f.lineas) for f in frames)
 
@@ -66,16 +66,32 @@ def test_el_contador_de_programa_nunca_sale_del_plan() -> None:
 # ------------------------------------------------------------------- deducciones
 
 
-def test_solo_deliberan_las_politicas_que_replanifican() -> None:
-    """``OPEN_LOOP`` ejecuta su plan ciego: nunca paga un tick de deliberación."""
-    _, frames = traza("OPEN_LOOP")
-    assert not any(f.accion == "DELIBERAR" for f in frames)
-    assert not any(f.edicion for f in frames)
+def test_el_lazo_abierto_solo_delibera_tras_un_fallo() -> None:
+    """``OPEN_LOOP`` ejecuta su plan ciego: solo paga deliberación cuando el plan falla.
+
+    Toda racha de ``DELIBERAR`` debe venir precedida de un ``FALLO`` (con, a lo sumo, el
+    tick de espera en que arranca la deliberación), y toda edición suya es una
+    replanificación forzada.
+    """
+    modelo, frames = traza("OPEN_LOOP")
+    assert any(f.accion == "FALLO" for f in frames), "la traza debería tener un fallo"
+    assert any(f.accion == "DELIBERAR" for f in frames)
+    for i, f in enumerate(frames):
+        if f.accion != "DELIBERAR":
+            continue
+        j = i - 1
+        while frames[j].accion in ("DELIBERAR", "ESPERA"):
+            j -= 1
+        assert frames[j].accion == "FALLO"
+    c = modelo.collector
+    assert c.n_ediciones == c.n_ediciones_por_fallo
 
 
-@pytest.mark.parametrize("policy", ["CLOSED_LOOP", "COLD_RESTART", "GOVERNED"])
+@pytest.mark.parametrize(
+    "policy", ["OPEN_LOOP", "CLOSED_LOOP", "COLD_RESTART", "GOVERNED"]
+)
 def test_las_ediciones_detectadas_cuadran_con_el_contador(policy: str) -> None:
-    """Cada ``editBook`` del modelo aparece en exactamente un frame, y ninguno más."""
+    """Cada edición del plan aparece en exactamente un frame, y ninguno más."""
     modelo, frames = traza(policy, presupuesto=3 if policy == "GOVERNED" else None)
     detectadas = sum(f.edicion in ("aplicada", "rechazada") for f in frames)
     assert detectadas == modelo.collector.n_ediciones

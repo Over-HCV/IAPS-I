@@ -1,15 +1,13 @@
 """Barridos de parámetros con ``batch_run``.
 
-El plan experimental está en ``docs/02-design.md`` §5. El barrido completo es grande, así
+El plan experimental está en ``info/02-design.md`` §5. El barrido completo es grande, así
 que se ejecuta por etapas: cada una aísla una pregunta y se guarda por separado.
 
-Uso::
+Uso, desde la raíz del repositorio::
 
-    uv run python -m oasys_abm.experiments --smoke
-    uv run python -m oasys_abm.experiments --sweep principal
-    uv run python -m oasys_abm.experiments --full
-
-(con ``project/`` en ``PYTHONPATH``; ver ``README.md``).
+    uv run python -m project.experiments --smoke
+    uv run python -m project.experiments --sweep principal
+    uv run python -m project.experiments --full
 """
 
 from __future__ import annotations
@@ -68,7 +66,7 @@ SWEEPS: dict[str, dict[str, Any]] = {
         "radio": 3,
     },
     "observabilidad": {
-        # El efecto del set `ignore` de OASys: ver menos, decidir peor.
+        # El efecto de la observabilidad parcial: ver menos, decidir peor.
         **BASE,
         "policy": CON_PLAN,
         "lambda_dinamismo": [0.0, 0.1, 0.25, 0.5],
@@ -77,7 +75,7 @@ SWEEPS: dict[str, dict[str, Any]] = {
         "costo_edicion": 5,
     },
     "control2": {
-        # Control de sanidad 2 (docs/02-design.md §9): con deliberación gratuita, oráculo
+        # Control de sanidad 2 (info/02-design.md §9): con deliberación gratuita, oráculo
         # perfecto y observabilidad total, el lazo cerrado no puede perder. Las tres
         # condiciones hacen falta a la vez y ningún otro barrido las fija juntas.
         **BASE,
@@ -97,12 +95,25 @@ SWEEPS: dict[str, dict[str, Any]] = {
         "competencia": 0.5,
         "radio": 3,
     },
+    "control4": {
+        # Control de sanidad 4: con B=0, GOVERNED no puede reparar de forma proactiva y
+        # solo le quedan las replanificaciones forzadas por un fallo, que se pagan igual
+        # que las de OPEN_LOOP. Debe ser idéntica a OPEN_LOOP, corrida a corrida.
+        **BASE,
+        "policy": [str(Policy.OPEN_LOOP), str(Policy.GOVERNED)],
+        "lambda_dinamismo": [0.1, 0.25, 0.5],
+        "costo_edicion": [0, 5],
+        "presupuesto": 0,
+        "competencia": 0.9,
+        "radio": 3,
+    },
     "gobernanza": {
-        # ¿Acotar las ediciones rescata al agente del thrashing?
+        # ¿Acotar las ediciones rescata al agente del thrashing? B=0 es el extremo en
+        # que GOVERNED se reduce a OPEN_LOOP (B solo acota las reparaciones proactivas).
         **BASE,
         "policy": [str(Policy.CLOSED_LOOP), str(Policy.GOVERNED)],
         "lambda_dinamismo": [0.1, 0.25, 0.5],
-        "presupuesto": [3, 5, 10, 25],
+        "presupuesto": [0, 3, 5, 10, 25],
         "competencia": 0.9,
         "costo_edicion": 5,
         "radio": 3,
@@ -156,6 +167,7 @@ def resumen(df: pd.DataFrame, por: list[str]) -> pd.DataFrame:
         "pasos_deliberando",
         "n_ediciones",
         "n_ediciones_desperdiciadas",
+        "n_ediciones_por_fallo",
         "carga_perdida",
         "latencia_deteccion",
     ]

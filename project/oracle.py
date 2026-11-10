@@ -6,7 +6,7 @@ presupuesto: abstraerlo así **convierte una propiedad del modelo en un parámet
 experimento**. Con un LLM real solo se puede responder "¿funcionó con este modelo, hoy?";
 con el oráculo se responde "¿a partir de qué competencia mínima conviene dejar que un
 agente se auto-edite, y cuánto puede costarle cada edición?" — un enunciado que sobrevive
-al cambio de modelo. El argumento completo está en ``docs/00-rationale.md`` §3.4–3.5.
+al cambio de modelo. El argumento completo está en ``info/00-rationale.md`` §3.4–3.5.
 
 Los dos modos de fallo están elegidos para parecerse a los de un modelo de lenguaje real:
 son planes **coherentes y equivocados**, no ruido. Un LLM que se equivoca no devuelve
@@ -54,8 +54,8 @@ class RepairRequest:
         believed_goal: celda donde el agente cree que está el objetivo.
         resource_id: identificador del recurso objetivo.
         tail: **toda** la continuación del plan tras recoger el objetivo: los objetivos
-            que queden pendientes, el regreso a la base y el ``DELIVER`` bloqueado que
-            la gobernanza obliga a conservar. Que la reparación arrastre la continuación
+            que queden pendientes, el regreso a la base y el ``DELIVER`` bloqueado,
+            fuera del alcance de edición, que toda reparación debe conservar. Que la reparación arrastre la continuación
             en vez de truncar la tarea es esencial: un parche que reduce el plan a un
             solo objetivo produce sistemáticamente planes peores, y el experimento
             estaría midiendo ese defecto en vez de la replanificación.
