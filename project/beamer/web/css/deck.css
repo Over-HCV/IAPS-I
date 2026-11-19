@@ -1,0 +1,51 @@
+/* deck.css — lo que el PDF no tiene: entradas escalonadas, mundo vivo, simulador. */
+
+/* entradas: cada .e aparece en orden al llegar a la diapositiva (--i lo pone deck.js) */
+.reveal .slides section .e {
+  opacity: 0; transform: translateY(12px);
+  transition: opacity 0.55s ease, transform 0.55s cubic-bezier(.2, .7, .2, 1);
+  transition-delay: calc(var(--i, 0) * 110ms + 120ms);
+}
+.reveal .slides section.present .e { opacity: 1; transform: none; }
+.reveal .slides section.present .relevo .raya.e { transform: scaleX(1); }
+.reveal .slides section .relevo .raya.e { transform: scaleX(0); transition-duration: 0.9s; }
+/* ?quieto=1: Todo en su estado final, sin movimiento */
+.quieto .reveal .slides section .e { transition: none; opacity: 1; transform: none; }
+
+.cita { color: var(--primario); }
+.pol.c-RX { color: var(--REFLEX); } .pol.c-MB { color: var(--MODEL_BASED); }
+.pol.c-OL { color: var(--OPEN_LOOP); } .pol.c-CR { color: var(--COLD_RESTART); }
+.pol.c-CL { color: var(--CLOSED_LOOP); } .pol.c-GOV { color: var(--GOVERNED); }
+.pol.c-KB { color: var(--KNOWLEDGE_BASED); } .pol.c-BAY { color: var(--BAYESIAN); }
+
+/* leyenda del mundo */
+.leyenda-mundo { display: flex; flex-wrap: wrap; justify-content: center; gap: 4px 16px; font-size: 15.5px; color: var(--tinta2); margin-top: 6px; }
+.leyenda-mundo span { display: inline-flex; align-items: center; gap: 6px; }
+.leyenda-mundo i { display: inline-block; width: 13px; height: 13px; }
+.m-ag { background: #1f77b4; border-radius: 50%; }
+.m-rec { background: #ff7f0e; border-radius: 50%; }
+.m-cre { border: 2px solid #8c8c8c; transform: rotate(45deg) scale(.8); }
+.m-plan { height: 0 !important; border-top: 3px dotted #7b5cd6; width: 20px !important; }
+.m-del { border: 3px solid #DB6720; border-radius: 50%; border-right-color: transparent; }
+.m-base { background: #2ca02c; }
+.m-reg { background: rgba(255, 127, 14, 0.3); }
+.mundo canvas { border: 1px solid #c9c5bc; }
+
+/* simulador embebido */
+.marco-sim { width: 760px; height: 548px; border: 1px solid #c9c5bc; background: #fff; overflow: hidden; }
+.marco-sim iframe { width: 100%; height: 100%; border: 0; display: block; }
+.qr-publico svg, .qr-publico img { width: 250px; height: 250px; display: block; margin: 0 auto; }
+.url-publica { font-family: var(--mono); font-size: 15px !important; color: var(--primario); word-break: break-all; }
+
+/* respaldo: la página del PDF a pantalla completa */
+.reveal .slides section.respaldo { background: #fff; }
+.respaldo img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; margin: 0; }
+
+/* cierre */
+.cierre { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; color: var(--claro); }
+.cierre .gracias { font-family: var(--titulo); font-size: 74px; letter-spacing: 0.12em; }
+.cierre .lema { font-size: 30px; color: var(--acento); margin-top: 26px; line-height: 1.35; }
+.cierre .autor-c { font-size: 22px; margin-top: 40px; }
+
+/* el canvas vivo de portada y relevos encima de la foto, debajo del velo */
+.plena canvas.vivo { pointer-events: none; }

@@ -46,3 +46,11 @@ MPLBACKEND=Agg PYTHONPATH="$RAIZ${PYTHONPATH:+:$PYTHONPATH}" \
   "${PY[@]}" "$AQUI/figuras.py" "$@"
 
 echo "figuras en $SALIDA: $(ls -1 "$SALIDA" | wc -l | tr -d ' ') archivos"
+
+# --- 3. datos del deck web ---------------------------------------------------------
+# Los mismos resultados en JSON para web/ (gráficas animadas y simulador). Sin
+# argumentos se exporta todo, incluidas las 120 corridas del simulador.
+if [ "$#" -eq 0 ]; then
+  MPLBACKEND=Agg PYTHONPATH="$RAIZ${PYTHONPATH:+:$PYTHONPATH}" \
+    "${PY[@]}" "$AQUI/web/exportar.py"
+fi

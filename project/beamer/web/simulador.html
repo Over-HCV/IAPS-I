@@ -1,0 +1,281 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<link rel="icon" href="data:,">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#002d4d">
+<meta name="color-scheme" content="light">
+<title>Planificar o no: Simulador</title>
+<meta name="description" content="Cuatro políticas en el mismo mundo: Corridas reales del modelo MESA, precalculadas.">
+<style>
+  @font-face { font-family: "Heros"; src: url("fuentes/texgyreheros-regular.otf"); font-weight: 400; }
+  @font-face { font-family: "Heros"; src: url("fuentes/texgyreheros-bold.otf"); font-weight: 700; }
+  @font-face { font-family: "Adventor"; src: url("fuentes/texgyreadventor-bold.otf"); font-weight: 700; }
+  @font-face { font-family: "FiraMono"; src: url("fuentes/FiraMono-Regular.otf"); }
+  :root {
+    --primario: #002d4d; --acento: #BFE5EE; --fondo: #F8F6F2; --papel: #fff; --tinta: #1A1A1A;
+    --tinta2: #55565a; --borde: #d9d4ca; --delib: #DB6720;
+    --sans: "Heros", -apple-system, system-ui, "Helvetica Neue", Arial, sans-serif;
+    --mono: "FiraMono", ui-monospace, Menlo, monospace;
+  }
+  * { box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; }
+  body { margin: 0; background: var(--fondo); color: var(--tinta); font-family: var(--sans); font-size: 15px; line-height: 1.35; }
+  .pagina { max-width: 1080px; margin: 0 auto; padding: 0 16px 28px; }
+  header.cab { background: var(--primario); color: #F5F5F5; padding: calc(env(safe-area-inset-top) + 14px) 16px 14px; }
+  header.cab .in { max-width: 1080px; margin: 0 auto; }
+  header.cab h1 { font-family: "Adventor", var(--sans); font-size: 20px; letter-spacing: .06em; text-transform: uppercase; margin: 0; }
+  header.cab p { margin: 4px 0 0; color: var(--acento); font-size: 14px; }
+  .controles { display: flex; flex-wrap: wrap; gap: 10px 18px; align-items: center; padding: 12px 0 10px; }
+  .grupo { display: flex; align-items: center; gap: 6px; }
+  .grupo > b { font-size: 14px; min-width: 1.1em; }
+  .seg { display: inline-flex; border: 1px solid var(--borde); border-radius: 6px; overflow: hidden; background: var(--papel); }
+  .seg button { appearance: none; border: 0; background: transparent; font: inherit; font-size: 14px; padding: 7px 10px;
+    min-width: 40px; color: var(--tinta); cursor: pointer; font-variant-numeric: tabular-nums; }
+  .seg button + button { border-left: 1px solid var(--borde); }
+  .seg button[aria-pressed="true"] { background: var(--primario); color: #fff; }
+  .acciones { display: flex; gap: 6px; margin-left: auto; }
+  .boton { appearance: none; border: 1px solid var(--borde); background: var(--papel); border-radius: 6px; font: inherit;
+    font-size: 14px; padding: 7px 12px; cursor: pointer; min-width: 44px; color: var(--tinta); }
+  .boton.primario { background: var(--primario); border-color: var(--primario); color: #fff; }
+  .mundos { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+  @media (min-width: 700px) { .mundos { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
+  .tarjeta { background: var(--papel); border: 1px solid var(--borde); border-radius: 6px; padding: 8px; min-width: 0; }
+  .tarjeta .nombre { font-family: var(--mono); font-size: 12.5px; font-weight: 700; display: flex; justify-content: space-between; gap: 6px; }
+  .tarjeta .tipo { font-size: 12px; color: var(--tinta2); margin: 1px 0 6px; min-height: 1.3em; }
+  .tarjeta canvas { width: 100%; height: auto; display: block; border-radius: 3px; }
+  .tarjeta .pie { display: flex; justify-content: space-between; align-items: baseline; margin-top: 6px; font-variant-numeric: tabular-nums; }
+  .tarjeta .ent { font-size: 22px; font-weight: 700; }
+  .tarjeta .ent small { font-size: 12px; font-weight: 400; color: var(--tinta2); margin-left: 3px; }
+  .tarjeta .est { font-size: 12px; color: var(--tinta2); text-align: right; }
+  .tarjeta .est.delib { color: var(--delib); font-weight: 700; }
+  .tarjeta.gana { outline: 2px solid var(--primario); }
+  .carrera { background: var(--papel); border: 1px solid var(--borde); border-radius: 6px; padding: 8px 10px 4px; margin-top: 10px; }
+  .carrera .tit { display: flex; justify-content: space-between; font-size: 13px; color: var(--tinta2); }
+  .carrera svg { width: 100%; height: 140px; display: block; }
+  .veredicto { margin: 10px 0 0; font-size: 15px; min-height: 1.4em; }
+  .barrido { margin: 4px 0 0; font-size: 13px; color: var(--tinta2); font-variant-numeric: tabular-nums; }
+  .barrido b { font-family: var(--mono); font-weight: 700; }
+  body.embebido .veredicto { margin-top: 6px; font-size: 14px; }
+  .leyenda { display: flex; flex-wrap: wrap; gap: 4px 14px; font-size: 12.5px; color: var(--tinta2); margin-top: 10px; }
+  .leyenda span { display: inline-flex; align-items: center; gap: 5px; }
+  .leyenda i { width: 11px; height: 11px; display: inline-block; }
+  .nota { font-size: 12.5px; color: var(--tinta2); margin-top: 12px; }
+  /* embebido en la diapositiva: sin cabecera, todo en 760 × 548 */
+  body.embebido { background: #fff; }
+  body.embebido .cab, body.embebido .nota { display: none; }
+  body.embebido .pagina { padding: 0 12px 8px; }
+  body.embebido .controles { padding: 10px 0 8px; }
+  body.embebido .carrera svg { height: 112px; }
+  body.embebido .leyenda { display: none; }
+</style>
+</head>
+<body>
+<header class="cab"><div class="in">
+  <h1>¿Planificar o no?</h1>
+  <p>Cuatro políticas en el mismo mundo. Corridas reales del modelo (MESA), precalculadas.</p>
+</div></header>
+
+<div class="pagina">
+  <div class="controles">
+    <div class="grupo"><b>λ</b><div class="seg" id="lam" role="group" aria-label="Dinamismo λ"></div></div>
+    <div class="grupo"><b>c</b><div class="seg" id="c" role="group" aria-label="Costo de deliberar c"></div></div>
+    <div class="grupo"><span style="font-size:14px">Mundo</span><div class="seg" id="sem" role="group" aria-label="Semilla"></div></div>
+    <div class="acciones">
+      <div class="seg" id="vel" role="group" aria-label="Velocidad"></div>
+      <button class="boton primario" id="play" aria-label="Reproducir o pausar">❚❚</button>
+      <button class="boton" id="reini" aria-label="Volver al inicio">↺</button>
+    </div>
+  </div>
+
+  <div class="mundos" id="mundos"></div>
+
+  <div class="carrera">
+    <div class="tit"><span>Entregas acumuladas</span><span id="tick">tick 0 / 400</span></div>
+    <svg id="svg" viewBox="0 0 1000 140" preserveAspectRatio="none" aria-label="Entregas acumuladas por tick"></svg>
+  </div>
+  <p class="veredicto" id="veredicto"></p>
+  <p class="barrido" id="barrido"></p>
+
+  <div class="leyenda">
+    <span><i style="background:#ff7f0e;border-radius:50%"></i>recurso real</span>
+    <span><i style="border:2px solid #8c8c8c;transform:rotate(45deg) scale(.8)"></i>dónde cree el agente que está</span>
+    <span><i style="border-top:3px dotted #7b5cd6;height:0;width:16px"></i>plan</span>
+    <span><i style="border:3px solid #DB6720;border-radius:50%;border-right-color:transparent"></i>deliberando (c ticks quieto)</span>
+    <span><i style="background:#2ca02c"></i>base</span>
+    <span><i style="background:rgba(47,128,237,.18)"></i>lo que ve (r = 3)</span>
+  </div>
+  <p class="nota">λ: Probabilidad por tick de que un recurso se mueva. c: Ticks que el agente pasa quieto cada vez que reescribe su plan. El mismo mundo (obstáculos, recursos, semilla) para las cuatro políticas; utilidad = 10 × entregas.</p>
+</div>
+
+<script src="js/mundo.js"></script>
+<script>
+(async () => {
+  "use strict";
+  const POL = {
+    MODEL_BASED: "Nunca planifica: Va al recurso que cree más cercano",
+    OPEN_LOOP: "Replanifica solo cuando el plan falla",
+    COLD_RESTART: "Replanifica al ver el cambio, soltando la carga",
+    CLOSED_LOOP: "Replanifica al ver el cambio, en caliente",
+  };
+  const VEL = [["1×", 8], ["2×", 18], ["4×", 40]];
+  const embebido = new URLSearchParams(location.search).has("embebido");
+  if (embebido) document.body.classList.add("embebido");
+  const quieto = matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+  const ind = await Mundo.indice();
+  const SEMILLAS = ind.orden || Object.keys(ind.semillas);
+  const st = { lam: 0.5, c: 5, sem: SEMILLAS[0], vel: 1, carga: 0 };
+  try { Object.assign(st, JSON.parse(localStorage.getItem("simulador") || "{}"), { carga: 0 }); } catch {}
+
+  function segmentos(id, opciones, clave, alCambiar) {
+    const caja = document.getElementById(id);
+    caja.innerHTML = "";
+    for (const [etiqueta, valor] of opciones) {
+      const b = document.createElement("button");
+      b.textContent = etiqueta;
+      b.setAttribute("aria-pressed", String(st[clave] == valor));
+      b.addEventListener("click", () => {
+        st[clave] = valor;
+        caja.querySelectorAll("button").forEach((x) => x.setAttribute("aria-pressed", String(x === b)));
+        try { localStorage.setItem("simulador", JSON.stringify({ lam: st.lam, c: st.c, sem: st.sem, vel: st.vel })); } catch {}
+        alCambiar();
+      });
+      caja.appendChild(b);
+    }
+  }
+
+  // tarjetas: una por política, mismo mundo
+  const cont = document.getElementById("mundos");
+  const tarjetas = {};
+  const pxCanvas = embebido ? 160 : 240;
+  for (const pol of ind.politicas) {
+    const t = document.createElement("div");
+    t.className = "tarjeta";
+    t.innerHTML = `<div class="nombre"><span style="color:${ind.colores[pol]}">${pol}</span></div>
+      <div class="tipo">${POL[pol] || ""}</div><canvas></canvas>
+      <div class="pie"><div class="ent">0<small>entregas</small></div><div class="est"></div></div>`;
+    cont.appendChild(t);
+    const vista = new Mundo.Vista(t.querySelector("canvas"), ind.semillas[st.sem],
+      { px: pxCanvas, colorAgente: ind.colores[pol], estela: 10 });
+    tarjetas[pol] = { el: t, vista, ent: t.querySelector(".ent"), est: t.querySelector(".est"), co: null };
+  }
+  if (embebido) document.querySelectorAll(".tipo").forEach((x) => (x.style.display = "none"));
+
+  // carrera: entregas acumuladas, trazadas hasta el tick actual
+  const svg = document.getElementById("svg");
+  const NS = "http://www.w3.org/2000/svg";
+  const lineas = {};
+  for (const pol of ind.politicas) {
+    const p = document.createElementNS(NS, "polyline");
+    p.setAttribute("fill", "none");
+    p.setAttribute("stroke", ind.colores[pol]);
+    p.setAttribute("stroke-width", pol === "MODEL_BASED" ? 4 : 2.6);
+    p.setAttribute("vector-effect", "non-scaling-stroke");
+    p.setAttribute("stroke-linejoin", "round");
+    svg.appendChild(p);
+    lineas[pol] = p;
+  }
+  let ymax = 1;
+
+  const T = ind.ticks;
+  let rep = null;
+  const veredicto = document.getElementById("veredicto");
+  const reloj = document.getElementById("tick");
+
+  function pintar(t) {
+    const i = Math.floor(t);
+    for (const pol of ind.politicas) {
+      const k = tarjetas[pol];
+      if (!k.co) continue;
+      k.vista.dibujar(t);
+      k.ent.firstChild.textContent = k.co.ent[i];
+      const d = k.co.d[i];
+      k.est.textContent = d ? "deliberando" : (k.co.car[i] ? `lleva ${k.co.car[i]}` : "");
+      k.est.classList.toggle("delib", !!d);
+      // carrera: un punto cada 4 ticks basta para 1000 px de ancho
+      const pts = [];
+      for (let s = 0; s <= i; s += 4) pts.push(`${(s / T) * 1000},${140 - 6 - (k.co.ent[s] / ymax) * 124}`);
+      pts.push(`${(t / T) * 1000},${140 - 6 - (k.co.ent[i] / ymax) * 124}`);
+      lineas[pol].setAttribute("points", pts.join(" "));
+    }
+    reloj.textContent = `tick ${i} / ${T}`;
+  }
+
+  function terminar() {
+    const fin = ind.politicas.map((p) => [p, tarjetas[p].co.ent[T]]).sort((a, b) => b[1] - a[1]);
+    const [g, n] = fin[0];
+    const empate = fin.filter((x) => x[1] === n).map((x) => x[0]);
+    for (const p of ind.politicas) tarjetas[p].el.classList.toggle("gana", empate.includes(p));
+    veredicto.innerHTML = empate.length > 1
+      ? `Empate en ${n} entregas: ${empate.map((p) => `<b style="color:${ind.colores[p]}">${p}</b>`).join(", ")}.`
+      : `En este mundo gana <b style="color:${ind.colores[g]}">${g}</b> con ${n} entregas.`;
+    document.getElementById("play").textContent = "▶";
+  }
+
+  // El promedio del barrido `principal` (30 mundos) para la misma celda: Una corrida sola
+  // varía mucho, y esta línea dice qué pasa en promedio.
+  const frontera = await Mundo.cargar("datos/frontera.json").catch(() => null);
+  const CORTO = { MODEL_BASED: "MB", OPEN_LOOP: "OL", COLD_RESTART: "CR", CLOSED_LOOP: "CL" };
+  function barrido() {
+    const caja = document.getElementById("barrido");
+    const celda = frontera && frontera[String(st.c)];
+    if (!celda) { caja.textContent = ""; return; }
+    const filas = ind.politicas.map((p) => [p, (celda[p] || []).find((d) => d.x === +st.lam)])
+      .filter(([, d]) => d).sort((a, b) => b[1].m - a[1].m);
+    caja.innerHTML = "Promedio de 30 mundos (entregas): " + filas.map(([p, d]) =>
+      `<b style="color:${ind.colores[p]}">${CORTO[p]}</b> ${(d.m / 10).toFixed(1)}`).join(" · ");
+  }
+
+  async function cargar() {
+    barrido();
+    const turno = ++st.carga;
+    if (rep) rep.pause();
+    veredicto.textContent = "";
+    for (const p of ind.politicas) tarjetas[p].el.classList.remove("gana");
+    const cos = await Promise.all(ind.politicas.map((p) => Mundo.corrida(st.sem, p, st.lam, st.c, ind.sin_c)));
+    if (turno !== st.carga) return; // llegó otra elección mientras cargaba
+    ymax = Math.max(1, ...cos.map((co) => co.ent[T]));
+    ind.politicas.forEach((p, k) => {
+      tarjetas[p].co = cos[k];
+      tarjetas[p].vista.setReticula(ind.semillas[st.sem]);
+      tarjetas[p].vista.setCorrida(cos[k]);
+    });
+    rep = new Mundo.Reproductor(pintar, { tps: VEL[st.vel][1], fin: T, alTerminar: terminar });
+    rep.ir(0);
+    if (!quieto) { rep.play(); document.getElementById("play").textContent = "❚❚"; }
+    else { rep.ir(T); terminar(); }
+  }
+
+  segmentos("lam", ind.lambdas.map((l) => [String(l), l]), "lam", cargar);
+  segmentos("c", ind.costos.map((c) => [String(c), c]), "c", cargar);
+  segmentos("sem", SEMILLAS.map((s, k) => [String(k + 1), s]), "sem", cargar);
+  segmentos("vel", VEL.map(([e], k) => [e, k]), "vel", () => { if (rep) rep.op.tps = VEL[st.vel][1]; });
+
+  document.getElementById("play").addEventListener("click", (e) => {
+    if (!rep) return;
+    if (rep.vivo) { rep.pause(); e.currentTarget.textContent = "▶"; }
+    else {
+      if (rep.t >= T) { veredicto.textContent = ""; ind.politicas.forEach((p) => tarjetas[p].el.classList.remove("gana")); }
+      rep.play(); e.currentTarget.textContent = "❚❚";
+    }
+  });
+  document.getElementById("reini").addEventListener("click", () => {
+    if (!rep) return;
+    veredicto.textContent = "";
+    ind.politicas.forEach((p) => tarjetas[p].el.classList.remove("gana"));
+    rep.ir(0); rep.play(); document.getElementById("play").textContent = "❚❚";
+  });
+  // el deck pausa el simulador embebido al salir de la diapositiva
+  addEventListener("message", (e) => {
+    if (!rep || !e.data || !e.data.simulador) return;
+    if (e.data.simulador === "pausa") { rep.pause(); document.getElementById("play").textContent = "▶"; }
+    if (e.data.simulador === "play" && rep.t < T) { rep.play(); document.getElementById("play").textContent = "❚❚"; }
+  });
+
+  await cargar();
+})();
+</script>
+</body>
+</html>

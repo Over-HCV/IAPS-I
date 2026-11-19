@@ -1,0 +1,128 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<link rel="icon" href="data:,">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<meta name="theme-color" content="#002d4d">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>Control de la presentación</title>
+<style>
+  @font-face { font-family: "Heros"; src: url("fuentes/texgyreheros-regular.otf"); font-weight: 400; }
+  @font-face { font-family: "Heros"; src: url("fuentes/texgyreheros-bold.otf"); font-weight: 700; }
+  :root { --primario: #002d4d; --oscuro: #0f1d2b; --acento: #BFE5EE; --claro: #F5F5F5; --menta: #4DB896; --rosa: #E8637D; }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { margin: 0; height: 100%; background: var(--oscuro); color: var(--claro);
+    font-family: "Heros", -apple-system, system-ui, sans-serif; overscroll-behavior: none;
+    -webkit-user-select: none; user-select: none; touch-action: manipulation; }
+  body { display: grid; grid-template-rows: auto 1fr; }
+  header { padding: calc(env(safe-area-inset-top) + 12px) 16px 12px; background: var(--primario);
+    display: grid; grid-template-columns: 1fr auto; gap: 2px 12px; align-items: center; }
+  #n { font-size: 30px; font-weight: 700; font-variant-numeric: tabular-nums; }
+  #titulo { grid-column: 1 / -1; font-size: 15px; color: var(--acento); min-height: 1.2em;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  #estado { font-size: 12px; display: inline-flex; align-items: center; gap: 6px; color: #b9c4cc; }
+  #estado::before { content: ""; width: 9px; height: 9px; border-radius: 50%; background: #8a8a8a; }
+  #estado.vivo::before { background: var(--menta); }
+  #estado.mal::before { background: var(--rosa); }
+  main { display: grid; grid-template-columns: 1fr 1fr; }
+  button { appearance: none; border: 0; margin: 0; color: inherit; font: inherit; background: transparent;
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px;
+    transition: background 0.12s; padding-bottom: env(safe-area-inset-bottom); }
+  button + button { border-left: 1px solid rgba(255, 255, 255, 0.08); }
+  button svg { width: 64px; height: 64px; opacity: 0.85; }
+  button span { font-size: 14px; letter-spacing: 0.12em; text-transform: uppercase; color: #b9c4cc; }
+  #prev.toque { background: rgba(232, 99, 125, 0.25); }
+  #next.toque { background: rgba(77, 184, 150, 0.28); }
+  #next { background: rgba(255, 255, 255, 0.035); }
+  .sin-token { padding: 24px 16px; font-size: 16px; line-height: 1.45; }
+</style>
+</head>
+<body>
+<header>
+  <div id="n">–</div><div id="estado">Conectando</div>
+  <div id="titulo"></div>
+</header>
+<main>
+  <button id="prev" aria-label="Diapositiva anterior">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></svg>
+    <span>Atrás</span>
+  </button>
+  <button id="next" aria-label="Diapositiva siguiente">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5l7 7-7 7"/></svg>
+    <span>Adelante</span>
+  </button>
+</main>
+<script>
+(() => {
+  "use strict";
+  const k = new URLSearchParams(location.search).get("k") || "";
+  const $ = (id) => document.getElementById(id);
+  const estado = $("estado");
+  if (!k) {
+    document.querySelector("main").outerHTML =
+      '<p class="sin-token">Falta el token. Abra este enlace desde el QR que muestra el deck con la tecla Q.</p>';
+    return;
+  }
+
+  function pintar(d) {
+    if (!d || d.i == null) return;
+    $("n").textContent = d.n != null ? `${d.n} / ${d.de}` : (d.respaldo ? "Respaldo" : "·");
+    $("titulo").textContent = d.titulo || "";
+  }
+
+  // Seguir la diapositiva actual: SSE, y si el túnel lo corta, sondeo cada 2 s.
+  let sondeo = null;
+  function sondear() {
+    if (sondeo) return;
+    sondeo = setInterval(() => {
+      fetch(`/api/estado?k=${encodeURIComponent(k)}`, { cache: "no-store" })
+        .then((r) => (r.ok ? r.json() : null)).then(pintar).catch(() => {});
+    }, 2000);
+  }
+  if (window.EventSource) {
+    const es = new EventSource(`/api/estado/sse?k=${encodeURIComponent(k)}`);
+    es.onopen = () => { estado.className = "vivo"; estado.textContent = "Conectado"; };
+    es.onmessage = (e) => { try { pintar(JSON.parse(e.data)); } catch {} };
+    es.onerror = () => { estado.className = "mal"; estado.textContent = "Reconectando"; sondear(); };
+  } else sondear();
+
+  // Mantener la pantalla encendida (solo en https, es decir, por el túnel).
+  let bloqueo = null;
+  async function despierto() {
+    try { if ("wakeLock" in navigator && !bloqueo) bloqueo = await navigator.wakeLock.request("screen"); } catch {}
+  }
+  document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") { bloqueo = null; despierto(); } });
+
+  async function ir(dir, boton) {
+    despierto();
+    boton.classList.add("toque");
+    setTimeout(() => boton.classList.remove("toque"), 160);
+    if (navigator.vibrate) navigator.vibrate(12);
+    try {
+      const r = await fetch("/api/ir", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "X-Token": k },
+        body: JSON.stringify({ ir: dir }),
+      });
+      const d = await r.json().catch(() => ({}));
+      if (!r.ok) { estado.className = "mal"; estado.textContent = r.status === 403 ? "Token inválido" : "Error"; }
+      else if (d.decks === 0) { estado.className = "mal"; estado.textContent = "Deck no conectado"; }
+      else { estado.className = "vivo"; estado.textContent = "Conectado"; }
+    } catch {
+      estado.className = "mal"; estado.textContent = "Sin conexión";
+    }
+  }
+  // pointerdown y no click: Responde al tocar, sin el retardo del doble toque
+  for (const [id, dir] of [["prev", "prev"], ["next", "next"]]) {
+    $(id).addEventListener("pointerdown", (e) => { e.preventDefault(); ir(dir, e.currentTarget); });
+  }
+  // teclas de volumen no se pueden leer desde la web; las flechas sí, con teclado bluetooth
+  document.addEventListener("keydown", (e) => {
+    if (["ArrowRight", "PageDown", " "].includes(e.key)) ir("next", $("next"));
+    if (["ArrowLeft", "PageUp"].includes(e.key)) ir("prev", $("prev"));
+  });
+})();
+</script>
+</body>
+</html>

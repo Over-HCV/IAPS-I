@@ -1,0 +1,497 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<link rel="icon" href="data:,">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Planes auto-editables</title>
+<link rel="stylesheet" href="vendor/reveal/reveal.css">
+<link rel="stylesheet" href="vendor/katex/katex.min.css">
+<link rel="stylesheet" href="css/tema.css">
+<link rel="stylesheet" href="css/deck.css">
+</head>
+<body>
+<div class="reveal"><div class="slides">
+
+<!-- =========================================================== PORTADA -->
+<section class="plano" data-titulo="Portada">
+  <div class="plena portada">
+    <div class="foto"></div>
+    <canvas class="vivo"></canvas>
+    <div class="velo" style="opacity:.30"></div>
+    <div class="bloque-titulo">
+      <h1 class="e">Planes auto-editables: Lazo<br>abierto vs. replanificación</h1>
+      <div class="sub e">¿Cuándo conviene que un agente reescriba su propio plan?</div>
+      <div class="linea e"></div>
+      <div class="autor e">Over Haider Castrillón Valencia</div>
+      <div class="meta e">Inteligencia Artificial: Representación y Solución de Problemas<br>Universidad del Rosario</div>
+      <div class="meta fecha e">Profesor: Nicolás Avilán Vargas, Ph.D. &nbsp; - &nbsp; Noviembre de 2026</div>
+    </div>
+    <div class="base"><img src="../tema/logos/ur-logo.png" alt="Universidad del Rosario"></div>
+  </div>
+  <aside class="notes">Pitch de 30 segundos (por si piden resumir): Primeramente, hay agentes que reescriben su propio plan mientras lo ejecutan, y la decisión de cuándo hacerlo se toma hoy por intuición. Progresivamente, se construyó un experimento en MESA con ocho arquitecturas, desde el reflejo simple hasta un agente lógico y uno bayesiano, sobre una retícula cuyos recursos se mueven con probabilidad λ, y en la que reescribir el plan cuesta c ticks durante los cuales el mundo sigue cambiando. Finalmente, con 16.260 corridas resulta que reparar al ver la divergencia y esperar a que el plan falle casi empatan, que reparar en caliente sí vale más que reiniciar en frío, y que con dinamismo alto y deliberación cara gana el agente que no delibera.</aside>
+</section>
+
+<!-- =========================================================== PARTE I -->
+<section class="plano relevo-s" data-parte="I">
+  <div class="plena relevo">
+    <div class="foto"></div><canvas class="vivo"></canvas><div class="velo" style="opacity:.8"></div>
+    <div class="texto">
+      <div class="parte e">PARTE I DE IV</div><div class="raya e"></div>
+      <h2 class="e">El problema</h2>
+      <div class="bajada e">Agentes que se reescriben y una decisión que nadie mide</div>
+    </div>
+  </div>
+  <aside class="notes">Parte I, ≈ 2:45. Hilo de toda la charla: La pregunta era cuándo conviene reescribir el plan, y la respuesta resultó ser, antes que nada, cuándo conviene deliberar.</aside>
+</section>
+
+<section data-titulo="Agentes que reescriben su propio plan">
+  <div class="marco"><div class="titulo">Agentes que reescriben su propio plan</div>
+  <div class="cuerpo"><div class="cols arriba">
+    <div style="flex:0 0 53%">
+      <p class="e">Una clase con nombre propio: Los <b>agentes auto-evolutivos</b> <span class="cita">(Gao et al. 2026)</span>.</p>
+      <ul>
+        <li class="e"><b>Voyager</b> programa y repara sus propias habilidades en Minecraft <span class="cita">(Wang et al. 2023)</span>.</li>
+        <li class="e"><b>AutoGPT</b> reescribe su lista de tareas; <b>Reflexion</b>, su memoria tras fallar <span class="cita">(Shinn et al. 2023)</span>.</li>
+        <li class="e"><b>The AI Scientist</b> editó su código para extender su propio límite de tiempo <span class="cita">(Lu et al. 2024)</span>.</li>
+      </ul>
+      <p class="scriptsize gris e" style="margin-top:.8em">Instancia de calibración: Motor de ejecución agéntica. Aporta cuestionamiento, no evidencia alguna.</p>
+    </div>
+    <div style="flex:0 0 43%">
+      <div class="bloque alerta e"><h4>El problema</h4><div>Se despliega sin un criterio medido de <em>cuándo</em> ejercerla: <br/> La dimensión <em>when</em> sigue abierta.</div></div>
+      <div class="bloque ejemplo e"><h4>La pregunta</h4><div>¿Bajo qué condiciones del entorno un agente que reescribe su plan supera a uno con plan estático, y a partir de qué costo de reescritura la ventaja se invierte?</div></div>
+    </div>
+  </div></div></div>
+  <aside class="notes">Primeramente, existe hoy una clase de sistemas a la que la literatura ya le puso nombre, los agentes auto-evolutivos (Gao et al., 2026), en los que el agente modifica durante su propia ejecución los componentes que lo definen: Voyager programa y repara sus propias habilidades en Minecraft, AutoGPT reescribe su lista de tareas en cada iteración, Reflexion reescribe su memoria tras cada fracaso y, como caso límite, The AI Scientist editó su propio código para extenderse el límite de tiempo que lo acotaba. El problema es que esa capacidad se despliega sin un criterio medido de cuándo ejercerla (la dimensión when), por lo cual la pregunta es bajo qué condiciones del entorno un agente que reescribe su plan supera a uno con plan estático, y a partir de qué costo de reescritura la ventaja se invierte.</aside>
+</section>
+
+<section data-titulo="Un problema clásico con otro vocabulario">
+  <div class="marco"><div class="titulo">Un problema clásico con otro vocabulario</div>
+  <div class="cuerpo centrado">
+    <table class="bt footnotesize filas">
+      <thead><tr><th>Motor agéntico</th><th>Russell &amp; Norvig (2020)</th><th>En el modelo</th></tr></thead>
+      <tbody>
+        <tr class="e"><td>Programa editable</td><td>Plan</td><td>Líneas <span class="pol">GOTO</span>, <span class="pol">PICK</span>, <span class="pol">DELIVER</span></td></tr>
+        <tr class="e"><td>Revisarlo contra lo que ve</td><td>Monitoreo de ejecución</td><td>Divergencia creencia ≠ mundo</td></tr>
+        <tr class="e"><td>Reescribirlo</td><td>Replanificación</td><td>Oráculo: Competencia \(p\), costo \(c\)</td></tr>
+        <tr class="e"><td>Editar la ejecución siguiente</td><td>Lazo abierto, reinicio en frío</td><td><span class="pol">COLD_RESTART</span> (suelta la carga)</td></tr>
+        <tr class="e"><td>Editar la ejecución en curso</td><td>Lazo cerrado, reparación en caliente</td><td><span class="pol">CLOSED_LOOP</span></td></tr>
+        <tr class="e"><td>Lo que tiene a la vista</td><td>Observabilidad parcial</td><td>Radio de visión \(r\)</td></tr>
+        <tr class="e"><td>Pensar mientras todo cambia</td><td>Metarazonamiento</td><td><span class="pol">DELIBERAR</span> ocupa \(c\) ticks</td></tr>
+      </tbody>
+    </table>
+    <p class="small centro e" style="margin-top:1.1em;max-width:1000px">El beneficio de replanificar crece con el dinamismo y su costo es casi constante: <b>debería existir un cruce</b>, y nadie lo había medido <span class="cita">(Zilberstein 2011; Fox et al. 2006)</span>.</p>
+  </div></div>
+  <aside class="notes">Al leer la teoría clásica con esa pregunta en mente resulta que el mecanismo completo ya está descrito en Russell y Norvig con otro vocabulario: El programa editable es un plan, revisarlo contra lo que se observa es monitoreo de ejecución, reescribirlo es replanificación, y aplicar la edición en la ejecución siguiente o sobre la ejecución en curso es la distinción entre lazo abierto y lazo cerrado de §11.5. Si el problema es clásico, cabe la pregunta clásica: El beneficio de replanificar crece con el dinamismo mientras que su costo es casi constante, de forma que debería existir un punto de cruce, y es ese punto el que nadie había medido.</aside>
+</section>
+
+<section data-titulo="El mundo">
+  <div class="marco"><div class="titulo">El mundo: Un recolector en una retícula que se mueve</div>
+  <div class="cuerpo"><div class="cols medio">
+    <div style="flex:0 0 40%"><div class="mundo" data-anim="mundo-cl" style="width:430px;margin:0 auto"></div>
+      <div class="leyenda-mundo">
+        <span><i class="m-ag"></i>agente</span><span><i class="m-rec"></i>recurso real</span><span><i class="m-cre"></i>creencia obsoleta</span>
+        <span><i class="m-plan"></i>plan vivo</span><span><i class="m-del"></i>deliberando</span><span><i class="m-base"></i>base</span>
+      </div>
+    </div>
+    <div style="flex:1" class="small">
+      <p class="e">MESA 3.5.1 <span class="cita">(Kazil et al. 2020)</span>: Retícula 15×15, 15&nbsp;% de obstáculos, 8 recursos, capacidad 3, 400 ticks.</p>
+      <ul>
+        <li class="e"><b>λ</b>: Probabilidad por tick de que un recurso derive a una celda vecina.</li>
+        <li class="e"><b>c</b>: Ticks que ocupa <span class="pol">DELIBERAR</span>; el mundo sigue moviéndose y el plan <b>nace desactualizado</b>.</li>
+        <li class="e"><b>p</b>: Competencia del oráculo; si falla, devuelve un plan <em>plausible y equivocado</em>.</li>
+        <li class="e"><b>r</b>: Radio de visión; fuera de él, solo la creencia.</li>
+      </ul>
+      <p class="e" style="margin-top:.4em">Utilidad neta = 10 × entregas <span class="gris">(κ = 0: El único castigo por pensar es el tiempo).</span></p>
+      <p class="nota e">Corrida real de <span class="pol">CLOSED_LOOP</span>, λ = 0.25, c = 5, r = 3 (semilla 3).</p>
+    </div>
+  </div></div></div>
+  <aside class="notes">El modelo, en MESA 3.5.1, es un recolector en una retícula de 15 × 15 con obstáculos y ocho recursos que, en cada tick, se mueven con probabilidad λ a una celda vecina, y la decisión de modelado central es que deliberar es una acción más, que ocupa c ticks durante los cuales el mundo sigue evolucionando, de modo que un plan puede nacer desactualizado (el arco ámbar alrededor del agente). El replanificador aún no es un modelo de lenguaje sino un oráculo con competencia p que, cuando falla, devuelve un plan plausible y equivocado, y el agente solo ve lo que cae dentro de su radio r (el rombo azul). La flecha roja es la divergencia: Dónde cree el agente que está su objetivo contra dónde está.</aside>
+</section>
+
+<section data-titulo="Ocho arquitecturas, un mismo cuerpo">
+  <div class="marco"><div class="titulo">Ocho arquitecturas, un mismo cuerpo</div>
+  <div class="cuerpo centrado">
+    <table class="bt footnotesize">
+      <thead><tr><th>Política</th><th></th><th>Tipo</th><th>Cuándo replanifica</th></tr></thead>
+      <tbody>
+        <tr class="grupo e"><td colspan="4">No planifican</td></tr>
+        <tr class="e"><td><span class="pol c-RX">REFLEX</span></td><td class="gris">RX</td><td>Reflejo simple</td><td>Nunca: Va al recurso visible más cercano</td></tr>
+        <tr class="e"><td><span class="pol c-MB">MODEL_BASED</span></td><td class="gris">MB</td><td>Reflejo con modelo</td><td>Nunca: Va al más cercano según su creencia</td></tr>
+        <tr class="grupo regla e"><td colspan="4">Planifican con A* y un oráculo</td></tr>
+        <tr class="e"><td><span class="pol c-OL">OPEN_LOOP</span></td><td class="gris">OL</td><td>Lazo abierto</td><td>Solo cuando el plan falla</td></tr>
+        <tr class="e"><td><span class="pol c-CR">COLD_RESTART</span></td><td class="gris">CR</td><td>Lazo abierto con reinicio</td><td>Al ver la divergencia, en frío (suelta la carga)</td></tr>
+        <tr class="e"><td><span class="pol c-CL">CLOSED_LOOP</span></td><td class="gris">CL</td><td>Lazo cerrado, en línea</td><td>Al ver la divergencia, en caliente</td></tr>
+        <tr class="e"><td><span class="pol c-GOV">GOVERNED</span></td><td class="gris">GOV</td><td>Lazo cerrado acotado</td><td>Como <span class="pol">CL</span>, hasta agotar \(B\) reparaciones</td></tr>
+        <tr class="grupo regla e"><td colspan="4">Preguntan qué saben antes de pagar</td></tr>
+        <tr class="e"><td><span class="pol c-KB">KNOWLEDGE_BASED</span></td><td class="gris">KB</td><td>Lógico, con fluentes</td><td>Solo si deduce que el plan ya no se cumple</td></tr>
+        <tr class="e"><td><span class="pol c-BAY">BAYESIAN</span></td><td class="gris">BAY</td><td>Filtro + utilidad esperada</td><td>Solo si reparar cuesta menos en esperanza</td></tr>
+      </tbody>
+    </table>
+    <p class="small e" style="margin-top:.8em;max-width:1120px">Mismo cuerpo, mismo oráculo, misma regla de costo (<b>toda</b> reparación, por fallo o por divergencia, cuesta \(c\)): Lo único que cambia es <b>cuándo</b> se invoca al replanificador.</p>
+  </div></div>
+  <aside class="notes">Sobre ese mundo se comparan ocho arquitecturas que comparten exactamente el mismo cuerpo, desde dos reflejos que nunca planifican, pasando por cuatro variantes de replanificación, hasta dos agentes que, antes de pagar una reparación, se preguntan qué saben, uno con lógica y otro con probabilidad, de forma que lo único que cambia entre ellas es cuándo invocan al replanificador: Los planes de rutina son gratis, pero toda reparación, la dispare un fallo del plan o una divergencia detectada, pasa por el mismo oráculo y cuesta los mismos c ticks.</aside>
+</section>
+
+<section data-titulo="Diseño experimental">
+  <div class="marco"><div class="titulo">Diseño experimental</div>
+  <div class="cuerpo">
+    <div class="cifras">
+      <div class="cifra"><div class="n cuenta" data-v="16260">16.260</div><div class="r">corridas en<br>13 barridos</div></div>
+      <div class="cifra"><div class="n cuenta" data-v="30">30</div><div class="r">semillas pareadas<br>por combinación</div></div>
+      <div class="cifra"><div class="n cuenta" data-v="11">11</div><div class="r">controles de<br>sanidad</div></div>
+      <div class="cifra"><div class="n cuenta" data-v="278">278</div><div class="r">pruebas automáticas<br>(277 pasan, 1 se salta)</div></div>
+    </div>
+    <ul class="small">
+      <li class="e"><b>Misma semilla, mismo mundo:</b> Toda comparación es la diferencia semilla a semilla, reportada como media ± EE.</li>
+      <li class="e"><b>Regla de lectura:</b> Fuera del ruido si supera 2 EE (prudencia, no prueba formal).</li>
+      <li class="e"><b>Hipótesis escritas antes</b> de correr cada barrido: Los rechazos cuentan como resultado.</li>
+      <li class="e">Además: 600 series temporales (48.600 filas) y 3.000 simulaciones para la calibración ABC.</li>
+    </ul>
+  </div></div>
+  <aside class="notes">Finalmente, el diseño son 16.260 corridas en trece barridos con 30 semillas pareadas, donde misma semilla quiere decir mismo mundo, de forma que toda comparación es una diferencia semilla a semilla, con once controles de sanidad, 278 pruebas automáticas e hipótesis escritas antes de correr cada barrido. Transición: «Con el mismo replanificador al mismo precio, ¿quién gana? La respuesta no fue la que se esperaba.»</aside>
+</section>
+
+<!-- =========================================================== PARTE II -->
+<section class="plano relevo-s" data-parte="II">
+  <div class="plena relevo">
+    <div class="foto"></div><canvas class="vivo"></canvas><div class="velo" style="opacity:.8"></div>
+    <div class="texto">
+      <div class="parte e">PARTE II DE IV</div><div class="raya e"></div>
+      <h2 class="e">Resultados</h2>
+      <div class="bajada e">Qué separa a quién, y desde cuándo</div>
+    </div>
+  </div>
+  <aside class="notes">Parte II, ≈ 4:45.</aside>
+</section>
+
+<section data-titulo="La frontera">
+  <div class="marco"><div class="titulo">La frontera</div>
+  <div class="cuerpo">
+    <div class="grafica" data-anim="frontera" style="width:1150px;height:440px"></div>
+    <p class="small e" style="margin-top:6px">Con λ = 0.5 y c ≥ 2, <span class="pol c-MB">MODEL_BASED</span>, que <b>nunca delibera</b>, supera a todo lo que planifica: 98.3 contra 53.3 (c = 2) y 27.0 (c = 5). <span class="gris">Con λ = 0 es al revés: 93.3 contra 57.0.</span></p>
+  </div></div>
+  <aside class="notes">La figura central muestra la utilidad contra λ con c = 2 y c = 5, y lo que se lee no es la frontera que se buscaba: Con λ = 0 las cuatro políticas que planifican rinden exactamente lo mismo (93.3) y casi duplican a las reactivas (57.0 el reflejo con modelo), pero a medida que crecen λ y c todo lo que planifica se hunde, mientras que MODEL_BASED, que nunca delibera, mejora con el dinamismo y no depende de c, de forma que a λ = 0.5 rinde 98.3 contra 53.3 de la mejor política con plan con c = 2 y 27.0 con c = 5. Es decir que la frontera existe, pero separa deliberar de no deliberar, y no al lazo cerrado del abierto.</aside>
+</section>
+
+<section data-titulo="Abierto contra cerrado">
+  <div class="marco"><div class="titulo">Abierto contra cerrado</div>
+  <div class="cuerpo"><div class="cols medio">
+    <div style="flex:0 0 55%"><div class="grafica" data-anim="abierto-cerrado" style="width:560px;height:480px"></div></div>
+    <div style="flex:1" class="small">
+      <ul>
+        <li class="e">Con r = 3, <span class="pol">OPEN_LOOP</span> − <span class="pol">CLOSED_LOOP</span> va de −9.0 a +25.7.</li>
+        <li class="e"><b>13 de 16</b> celdas con λ &gt; 0 quedan dentro de 2 EE; el cerrado nunca se adelanta más allá del ruido.</li>
+        <li class="e">Al sortear el orden de activación, el signo cambia en <b>3 de 6</b> celdas.</li>
+      </ul>
+      <div class="bloque e"><h4>Lectura</h4><div>Al mismo precio, monitorear el plan no compra casi nada sobre replanificar solo al fallar.</div></div>
+    </div>
+  </div></div></div>
+  <aside class="notes">La comparación que motivaba el trabajo, reparar al ver la divergencia contra esperar a que el plan falle, resulta mucho más pareja de lo esperado: La diferencia va de −9.0 a +25.7 puntos y en 13 de las 16 celdas dinámicas cae dentro de dos errores estándar (los puntos huecos), en ninguna celda el lazo cerrado se adelanta más allá del ruido, y al sortear el orden de activación el signo cambia en 3 de 6 celdas.</aside>
+</section>
+
+<section data-titulo="Reparar en caliente sí vale">
+  <div class="marco"><div class="titulo">Reparar en caliente sí vale</div>
+  <div class="cuerpo"><div class="cols medio">
+    <div style="flex:0 0 55%"><div class="grafica" data-anim="caliente-frio" style="width:560px;height:480px"></div></div>
+    <div style="flex:1" class="small">
+      <ul>
+        <li class="e"><span class="pol">CLOSED_LOOP</span> − <span class="pol">COLD_RESTART</span>: De <b>+16 a +22</b> puntos a λ = 0.1 y 0.25 con c entre 2 y 5; +32.0 ± 5.7 con c = 0 y λ = 0.5.</li>
+        <li class="e">Con visión total llega a +80.7 ± 7.0.</li>
+        <li class="e">Mismo signo en 5 de 6 celdas con el orden sorteado: La conclusión <b>más robusta</b>.</li>
+      </ul>
+      <div class="bloque e"><h4>Lectura</h4><div>Conservar el trabajo en curso compensa en cuanto el entorno cambia, salvo donde ambas políticas colapsan.</div></div>
+    </div>
+  </div></div></div>
+  <aside class="notes">Lo que sí vale con claridad es reparar en caliente en lugar de reiniciar en frío, que era la decisión de ingeniería que motivó todo: Conservar el trabajo en curso da entre +16 y +22 puntos a λ = 0.1 y 0.25 con c entre 2 y 5, +32.0 ± 5.7 a λ = 0.5 con deliberación gratuita y hasta +80.7 ± 7.0 con visión total, y es la conclusión más robusta del trabajo, ya que conserva el signo en 5 de 6 celdas con el orden sorteado (la sexta es donde ambas políticas colapsan y empatan en 10.0).</aside>
+</section>
+
+<section data-titulo="Ritmo, no evento">
+  <div class="marco"><div class="titulo">Ritmo, no evento</div>
+  <div class="cuerpo">
+    <div class="grafica" data-anim="dinamica" style="width:1150px;height:440px"></div>
+    <p class="small e" style="margin-top:4px">Las curvas son casi rectas desde el tick 50: Las diferencias finales son <b>pendientes acumuladas</b>. A λ = 0.5, <span class="pol">CLOSED_LOOP</span> delibera 64 de los primeros 100 ticks: El <em>thrashing</em> es un impuesto constante, no una crisis.</p>
+  </div></div>
+  <aside class="notes">Las series temporales dicen cuándo se separan las políticas, y el plan suponía un evento identificable, mientras que lo que aparece es un ritmo: Las entregas acumuladas son casi rectas desde el tick 50, de forma que las diferencias finales son pendientes acumuladas durante 400 ticks, y reparar en caliente tarda en pagar, pues a λ = 0.1 su ventaja sobre el frío se separa del ruido recién desde el tick 130, cuando ya hay carga a bordo que un reinicio tiraría. A λ = 0.5 el lazo cerrado delibera 64 de los primeros 100 ticks: El thrashing no es una crisis sino un impuesto que se cobra desde el principio.</aside>
+</section>
+
+<section data-titulo="Simulador" data-simulador>
+  <div class="marco"><div class="titulo">Simulador: Las mismas corridas, en su celular</div>
+  <div class="cuerpo"><div class="cols medio">
+    <div style="flex:0 0 760px"><div class="marco-sim"><iframe title="Simulador" data-src="simulador.html?embebido=1" loading="lazy"></iframe></div></div>
+    <div style="flex:1;text-align:center" class="small">
+      <div class="qr-publico e"></div>
+      <p class="footnotesize e url-publica"></p>
+      <p class="footnotesize e" style="text-align:left;margin-top:.6em">Mueva <b>λ</b> y <b>c</b> y mire quién entrega más. Son corridas reales del modelo, precalculadas: Nada se inventa en el navegador.</p>
+    </div>
+  </div></div></div>
+  <aside class="notes">Momento para el público: Que escaneen el QR y prueben λ = 0.5 con c = 5 (MODEL_BASED arrasa) contra λ = 0.1 con c = 2 (planificar gana). Si no hay túnel, el simulador embebido funciona igual en la pantalla.</aside>
+</section>
+
+<!-- =========================================================== PARTE III -->
+<section class="plano relevo-s" data-parte="III">
+  <div class="plena relevo">
+    <div class="foto"></div><canvas class="vivo"></canvas><div class="velo" style="opacity:.8"></div>
+    <div class="texto">
+      <div class="parte e">PARTE III DE IV</div><div class="raya e"></div>
+      <h2 class="e">Aportes del curso</h2>
+      <div class="bajada e">Saber qué se sabe: Lógica y probabilidad</div>
+    </div>
+  </div>
+  <aside class="notes">Parte III, ≈ 4:30. Transición: «Si el problema es reparar de más, la pregunta natural del curso es: ¿y si el agente supiera qué sabe antes de pagar?»</aside>
+</section>
+
+<section data-titulo="Un agente basado en conocimiento">
+  <div class="marco"><div class="titulo">Un agente basado en conocimiento</div>
+  <div class="cuerpo"><div class="cols medio">
+    <div style="flex:0 0 330px"><div class="mundo" data-anim="mundo-kb" style="width:300px;margin:0 auto"></div>
+      <div class="leyenda-mundo"><span><i class="m-reg"></i>región posible \(R(r,t)\)</span><span><i class="m-cre"></i>creencia</span></div>
+    </div>
+    <div style="flex:1" class="footnotesize">
+      <p class="e"><b>TELL</b> de fluentes, \(\mathit{Visto}(r,c,t)\) y \(\neg\mathit{En}(r,c,t)\), más el axioma de deriva:</p>
+      <p class="e centro">\(\mathit{En}(r,c,t) \Rightarrow \bigvee_{c'\in N^{+}(c)} \mathit{En}(r,c',t{+}1)\)</p>
+      <p class="e">Región posible: \(R(r,t) = E^{\delta_t}\bigl(R(r,t{-}1)\bigr) \setminus V_t\).</p>
+      <p class="e" style="margin-top:.6em"><b>ASK</b> antes de pagar una reparación:</p>
+      <ol>
+        <li class="e">¿Dónde puede estar \(r\) ahora?</li>
+        <li class="e">¿Qué recurso tengo asegurado? <span class="gris">(el mejor peor caso)</span></li>
+        <li class="e">¿Sigue siendo ejecutable mi plan? Solo <em>inválido</em> al «llegada» dispara la reparación.</li>
+      </ol>
+    </div>
+  </div></div></div>
+  <aside class="notes">De la sesión de agentes lógicos sale KNOWLEDGE_BASED, que repara en caliente como el lazo cerrado pero lleva una base de conocimiento con fluentes: Hace TELL de lo que ve como Visto(r, c, t) y de lo que ve vacío, y conoce el axioma de deriva, del que se sigue la región posible R(r, t), el conjunto de celdas que su KB no puede descartar, que crece mientras no ve el recurso, se recorta con lo que ve vacío y colapsa a un punto al volver a verlo (lo que se ve en la animación). Antes de pagar hace tres ASK, y la tercera es la que importa: El plan solo se repara si es inválido. La monotonía no se rompe sino que se indexa por el tiempo: Visto(r, c, t) sigue siendo verdadera, y lo que caduca es la conclusión «está ahí ahora».</aside>
+</section>
+
+<section data-titulo="El agente lógico">
+  <div class="marco"><div class="titulo">El agente lógico</div>
+  <div class="cuerpo"><div class="cols medio">
+    <div style="flex:0 0 45%"><div class="grafica" data-anim="kb-r3" style="width:500px;height:500px"></div></div>
+    <div style="flex:1" class="small">
+      <ul>
+        <li class="e">Supera a <span class="pol">CLOSED_LOOP</span> con el signo esperado en todas las celdas, pero fuera del ruido solo con r = 3, λ = 0.5: <b>+21.3 ± 3.8</b>.</li>
+        <li class="e">Con el horizonte «ahora» la ventaja desaparece (+5.7 ± 4.1, −3.0 ± 5.1, −1.3 ± 2.6): Toda la ganancia es no reparar derivas reversibles.</li>
+        <li class="e">No alcanza a <span class="pol">MODEL_BASED</span> desde λ = 0.25 (−24.7 ± 9.8 y −67.0 ± 10.5).</li>
+        <li class="e">Si cada pregunta cuesta <b>1 tick</b>, la ventaja se invierte.</li>
+      </ul>
+    </div>
+  </div></div></div>
+  <aside class="notes">El agente lógico supera al lazo cerrado con el signo esperado en todas las celdas, pero fuera del ruido solo con r = 3 y λ = 0.5, por +21.3 ± 3.8, y la ablación con el horizonte «ahora» dice de dónde sale esa ganancia: La ventaja desaparece, de forma que todo lo que gana viene de no reparar derivas de las que el recurso todavía puede volver, es decir, de reparar menos. No alcanza a MODEL_BASED desde λ = 0.25, y si cada pregunta cuesta un solo tick la ventaja se invierte.</aside>
+</section>
+
+<section data-titulo="Un agente bayesiano">
+  <div class="marco"><div class="titulo">Un agente bayesiano: La creencia es correcta</div>
+  <div class="cuerpo"><div class="cols medio">
+    <div style="flex:0 0 55%" class="small">
+      <ul>
+        <li class="e"><b>Aprende λ mirando:</b> Previa \(\mathrm{Beta}(1,1)\), \(\hat\lambda = (1+m)/(2+n)\). Error mediano 0.083, <b>0.020</b> y 0.003 con r = 1, 3 e ∞.</li>
+        <li class="e"><b>Filtra</b> cada recurso: El soporte coincide tick a tick con la región lógica \(R(r,t)\).</li>
+        <li class="e"><b>Decide</b> por utilidad esperada: Repara si
+          <div class="centro" style="margin:.35em 0">\(c \;<\; (1-q)\,(c+k)\)</div>
+          <span class="gris">con \(q\) = probabilidad de que el recurso siga ahí al llegar.</span></li>
+      </ul>
+    </div>
+    <div style="flex:1" class="centro">
+      <div class="grafica" data-anim="fiabilidad" style="width:400px;height:380px"></div>
+      <p class="footnotesize e">Diagrama de fiabilidad: El filtro está calibrado (HB5).</p>
+    </div>
+  </div></div></div>
+  <aside class="notes">De la sesión de inferencia probabilística sale BAYESIAN, que sabe lo mismo que el lógico pero no recibe λ sino que lo aprende mirando, con una previa Beta(1, 1), y su error mediano es 0.020 con r = 3; además filtra la posición de cada recurso, y el soporte de su filtro coincide tick a tick con la región lógica, lo cual se prueba, y el diagrama de fiabilidad muestra que está calibrado. Para decidir usa utilidad esperada y repara si c &lt; (1 − q)(c + k).</aside>
+</section>
+
+<section data-titulo="…decide peor">
+  <div class="marco"><div class="titulo">…decide peor</div>
+  <div class="cuerpo">
+    <div class="grafica" data-anim="mecanismo" style="width:1150px;height:250px"></div>
+    <p class="nota e" style="margin:.2em 0 .5em">λ = 0.5, r = 3, c = 5: <span class="pol">CL</span> = <span class="pol">CLOSED_LOOP</span>, <span class="pol">KB</span> = <span class="pol">KNOWLEDGE_BASED</span>, <span class="pol">BAY</span> = <span class="pol">BAYESIAN</span> (medias por corrida ± EE).</p>
+    <ul class="small">
+      <li class="e"><b>HB1 rechazada:</b> <span class="pol">BAYESIAN</span> − <span class="pol">KNOWLEDGE_BASED</span> = −16.0 ± 4.3.</li>
+      <li class="e">La regla trata reparar como si costara c y <em>comprara certeza</em>; el plan reparado nace desactualizado y puede interrumpirse.</li>
+      <li class="e">Con c = 5 y k = 3 el bayesiano repara si q &lt; 3/8; el lógico, solo si q = 0. <b>La lógica gana por tacaña.</b></li>
+    </ul>
+  </div></div>
+  <aside class="notes">Y aun así decide peor que el lógico, por −16.0 ± 4.3 a λ = 0.5 y r = 3, de modo que HB1 se rechaza, y la causa está en los datos: Repara de forma proactiva 16.3 veces contra 9.5 del lógico, desperdicia 145.8 ediciones contra 97.4 y pasa 265 de 400 ticks deliberando contra 219, porque su regla trata cada reparación como si costara c y comprara certeza, cuando el plan reparado nace desactualizado y puede interrumpirse.</aside>
+</section>
+
+<section data-titulo="Lógica contra probabilidad">
+  <div class="marco"><div class="titulo">Lógica contra probabilidad</div>
+  <div class="cuerpo"><div class="cols medio">
+    <div style="flex:0 0 50%"><div class="grafica" data-anim="quien-gana" style="width:560px;height:470px"></div></div>
+    <div style="flex:1" class="small">
+      <ul>
+        <li class="e"><b>En la creencia</b> el puente funciona: Lo que la KB llama <em>desconocido</em> es justo lo que tiene probabilidad positiva.</li>
+        <li class="e"><b>En la decisión</b> falla: Una regla de utilidad esperada es tan buena como su modelo de costos.</li>
+        <li class="e">Ninguna de las dos alcanza a no deliberar: <span class="pol">BAYESIAN</span> queda −83.0 ± 10.3 por debajo de <span class="pol">MODEL_BASED</span>.</li>
+      </ul>
+      <div class="bloque e"><h4>Lectura</h4><div>El cuello de botella pasó de <em>qué sé</em> a <em>cuánto cuesta lo que hago con lo que sé</em>.</div></div>
+    </div>
+  </div></div></div>
+  <aside class="notes">La lectura de fondo: El puente de la lógica a la probabilidad funciona en la creencia y falla en la decisión, cuyo modelo de costos resultó ser el eslabón débil, y ninguna de las dos alcanza a no deliberar, pues el bayesiano queda 83.0 puntos por debajo de MODEL_BASED.</aside>
+</section>
+
+<section data-titulo="Escasez">
+  <div class="marco"><div class="titulo">Escasez: Reparar vale menos, no más</div>
+  <div class="cuerpo">
+    <div class="grafica" data-anim="escasez" style="width:1150px;height:380px"></div>
+    <p class="small e" style="margin-top:8px">Hipótesis <b>refutada</b> en los dos regímenes: <span class="pol">CLOSED_LOOP</span> − <span class="pol">OPEN_LOOP</span> pasa de +36.7 ± 4.0 a +62.0 ± 5.0, y <span class="pol">MODEL_BASED</span> − <span class="pol">OPEN_LOOP</span> de +13.0 ± 3.1 a +96.0 ± 13.0, de 2 a 16 recursos. <b>Costo de oportunidad:</b> Con objetivos de sobra, cada tick quieto es una entrega que no se hace.</p>
+  </div></div>
+  <aside class="notes">La escasez refutó la hipótesis de que reparar valdría más con pocos recursos, pues tanto la ventaja del cerrado (de +36.7 a +62.0) como la de no planificar (de +13.0 a +96.0) crecen con la abundancia, por costo de oportunidad.</aside>
+</section>
+
+<section data-titulo="Sensibilidad">
+  <div class="marco"><div class="titulo">Sensibilidad: λ manda, abierto − cerrado es ruido</div>
+  <div class="cuerpo">
+    <div class="grafica" data-anim="sensibilidad" style="width:1150px;height:400px"></div>
+    <p class="small e" style="margin-top:8px">λ explica hasta el <b>62&nbsp;%</b> de la varianza de las políticas con plan; p a lo sumo el 1.5&nbsp;% y B el 0.3&nbsp;%. Sobre <span class="pol">OPEN_LOOP</span> − <span class="pol">CLOSED_LOOP</span> ningún factor pasa de 0.093: Casi toda su variación es <b>ruido entre mundos</b>.</p>
+  </div></div>
+  <aside class="notes">La sensibilidad dice qué medir: λ explica hasta el 62 % de la varianza de las políticas con plan, mientras que p explica a lo sumo el 1.5 % y el presupuesto el 0.3 %.</aside>
+</section>
+
+<section data-titulo="Un criterio operable: Medir λ">
+  <div class="marco"><div class="titulo">Un criterio operable: Medir λ</div>
+  <div class="cuerpo"><div class="cols medio">
+    <div style="flex:0 0 42%" class="centro"><div class="grafica" data-anim="abc" style="width:470px;height:480px"></div>
+      <p class="footnotesize e" style="margin-top:2px">Despliegue con (λ*, p*) = (0.25, 0.7).</p></div>
+    <div style="flex:1" class="small">
+      <p class="e">Telemetría de un motor <span class="pol">OPEN_LOOP</span> (cinco tasas por tick) → ABC por rechazo <span class="cita">(Beaumont et al. 2002)</span> → leer la frontera: ¿planificar? y, si sí, ¿abierto o cerrado?</p>
+      <table class="bt footnotesize e" style="margin:.6em 0">
+        <thead><tr><th>(λ*, p*)</th><th>λ̂ [IC 90&nbsp;%]</th><th>Recomendación</th></tr></thead>
+        <tbody>
+          <tr><td>(0.1, 0.9)</td><td>0.06 [0.01, 0.14]</td><td>Planificar (<span class="pol">CL</span> 81&nbsp;%)</td></tr>
+          <tr><td>(0.25, 0.7)</td><td>0.25 [0.15, 0.40]</td><td>No planificar (<span class="pol">MB</span> 87&nbsp;%)</td></tr>
+          <tr><td>(0.5, 0.9)</td><td>0.45 [0.29, 0.74]</td><td>No planificar (<span class="pol">MB</span> 100&nbsp;%)</td></tr>
+        </tbody>
+      </table>
+      <p class="e">λ cae siempre dentro del IC 90&nbsp;%; <b>p no es identificable</b> (la posterior es la previa). Por suerte, la decisión depende de λ.</p>
+    </div>
+  </div></div></div>
+  <aside class="notes">La calibración por ABC convierte eso en un criterio operable: A partir de la telemetría de un motor en frío recupera λ dentro del intervalo creíble del 90 % en los tres casos de prueba y recomienda planificar a λ = 0.1 y no planificar a 0.25 y 0.5, con el detalle de que p no es identificable, aunque por suerte la decisión depende de λ. Transición: «Con eso ya está la respuesta; queda ver qué cambió desde el Avance 2 y qué no se midió.»</aside>
+</section>
+
+<!-- =========================================================== PARTE IV -->
+<section class="plano relevo-s" data-parte="IV">
+  <div class="plena relevo">
+    <div class="foto"></div><canvas class="vivo"></canvas><div class="velo" style="opacity:.8"></div>
+    <div class="texto">
+      <div class="parte e">PARTE IV DE IV</div><div class="raya e"></div>
+      <h2 class="e">Cierre</h2>
+      <div class="bajada e">Lo que cambió, lo que queda y lo que no se midió</div>
+    </div>
+  </div>
+  <aside class="notes">Parte IV, ≈ 2:30.</aside>
+</section>
+
+<section data-titulo="Del Avance 2 al resultado final">
+  <div class="marco"><div class="titulo">Del Avance 2 al resultado final</div>
+  <div class="cuerpo"><div class="cols arriba">
+    <div style="flex:0 0 44%">
+      <div class="bloque e"><h4>Avance 2: El mejor caso del lazo cerrado</h4><div class="small">r = ∞, p = 1, capacidad 1, tres políticas, 600 corridas. Con c = 0 el cerrado ganaba (128 contra 114 a λ = 0.5); con c = 1 ya perdía (−11.3 contra 79.8): <b>cruce entre c = 0 y c = 1</b>.</div></div>
+      <div class="bloque alerta e"><h4>Lo que no anticipó</h4><div class="small">La frontera que importa separa deliberar de no deliberar. La pista estaba ahí: El reflejo ya ganaba cuando λc crecía.</div></div>
+    </div>
+    <div style="flex:1">
+      <table class="bt footnotesize">
+        <thead><tr><th>Hipótesis del Avance 2</th><th>Veredicto</th></tr></thead>
+        <tbody>
+          <tr class="e"><td>1. r finito hunde al cerrado</td><td>A medias</td></tr>
+          <tr class="e"><td>2. Existe una p mínima</td><td>No (η² ≤ 0.015)</td></tr>
+          <tr class="e"><td>3. Caliente &gt; frío</td><td><b>Sí</b>, desde λ = 0.1</td></tr>
+          <tr class="e"><td>4. B corta el <em>thrashing</em></td><td>Solo evita el peor caso</td></tr>
+          <tr class="e"><td>5. Barrido completo</td><td>Hecho, salvo κ</td></tr>
+        </tbody>
+      </table>
+      <p class="small e" style="margin-top:.8em">La hipótesis confirmada con más fuerza: Caliente contra frío, de +16 a +22 puntos desde λ = 0.1.</p>
+    </div>
+  </div></div></div>
+  <aside class="notes">El Avance 2 fue a propósito el mejor caso para el lazo cerrado, con visión total, oráculo perfecto, capacidad 1 y tres políticas, y ahí el cerrado ganaba con deliberación gratuita (128 contra 114 a λ = 0.5) pero perdía en cuanto reparar costaba un solo tick (−11.3 contra 79.8). Lo que no anticipó fue que la frontera relevante separa deliberar de no deliberar, aunque la pista ya estaba ahí: El reflejo superaba a ambos planificadores cuando λc crecía.</aside>
+</section>
+
+<section data-titulo="Para llevarse">
+  <div class="marco"><div class="titulo">Para llevarse</div>
+  <div class="cuerpo">
+    <ol>
+      <li class="e">Al mismo precio, reparar al ver la divergencia y esperar a que el plan falle <b>casi empatan</b>.</li>
+      <li class="e">La frontera real separa <b>deliberar de no deliberar</b>: Con λ alto y c ≥ 2 gana el agente que nunca delibera.</li>
+      <li class="e"><b>Reparar en caliente</b> vale desde λ = 0.1 (+16 a +22): La conclusión más robusta.</li>
+      <li class="e">Saber qué se sabe ayuda solo si <b>evita pagar reparaciones</b>; la probabilidad correcta no salva un mal modelo de costos.</li>
+      <li class="e">En un despliegue hay que medir <b>λ y c</b>, no p: λ se puede medir.</li>
+    </ol>
+    <div class="bloque ejemplo e" style="margin-top:.7em"><h4>En una frase</h4><div>Decidir cuándo reescribir el plan es, antes que nada, decidir si deliberar.</div></div>
+  </div></div>
+  <aside class="notes">Lo que hay que llevarse cabe en cinco puntos. Dicho en una frase, decidir cuándo reescribir el plan es, antes que nada, decidir si deliberar.</aside>
+</section>
+
+<section data-titulo="Límites">
+  <div class="marco"><div class="titulo">Límites</div>
+  <div class="cuerpo"><div class="cols arriba">
+    <div style="flex:1">
+      <div class="bloque e"><h4>Validez externa</h4><div class="small"><ul>
+        <li>Un agente, retícula 15×15, 400 ticks.</li>
+        <li>κ = 0: Sin costo en tokens.</li>
+        <li>El oráculo imita el <em>tipo</em> de error, no su distribución.</li>
+        <li>Unidades del modelo: Falta fijar qué es un tick en un sistema real.</li>
+        <li>ABC sobre despliegues sintéticos.</li>
+      </ul></div></div>
+    </div>
+    <div style="flex:1">
+      <div class="bloque e"><h4>Alcance</h4><div class="small"><ul>
+        <li>30 réplicas; 2 EE sin corrección por comparaciones múltiples.</li>
+        <li>Visión total barrida solo con c = 5.</li>
+        <li>Inferencia gratuita por defecto en <span class="pol">KB</span> y <span class="pol">BAY</span>.</li>
+        <li>HB1 rechaza <em>esta</em> regla bayesiana, no la decisión bayesiana en general.</li>
+        <li>η² de un factor: Sin interacciones.</li>
+      </ul></div></div>
+    </div>
+  </div></div></div>
+  <aside class="notes">Los límites: Es un solo agente en una retícula de 15 × 15, con κ = 0, es decir, sin costo en tokens (que desplazaría la frontera todavía más en contra de deliberar), el oráculo imita el tipo de error pero no su distribución, falta fijar a qué equivale un tick en un sistema real, y la calibración es sobre despliegues sintéticos. Gracias.</aside>
+</section>
+
+<section class="respaldo" data-titulo="Referencias"><img src="respaldo/referencias-27.png" alt="Referencias"></section>
+
+<section class="plano" data-sin-numero data-titulo="Gracias">
+  <div class="plena relevo">
+    <div class="foto"></div><canvas class="vivo"></canvas><div class="velo" style="opacity:.62"></div>
+    <div class="cierre">
+      <div class="gracias e">GRACIAS</div>
+      <div class="lema e">Mida λ y c antes que p.<br>Con dinamismo alto y deliberación cara, no planifique.</div>
+      <div class="autor-c e">Over Haider Castrillón Valencia</div>
+    </div>
+  </div>
+</section>
+
+<!-- =========================================================== RESPALDO (páginas del PDF) -->
+<section class="respaldo" data-respaldo><img src="respaldo/r-29.png" alt="Respaldo - Controles de sanidad"></section>
+<section class="respaldo" data-respaldo><img src="respaldo/r-30.png" alt="Respaldo - La frontera completa"></section>
+<section class="respaldo" data-respaldo><img src="respaldo/r-31.png" alt="Respaldo - Las dos diferencias que deciden la frontera"></section>
+<section class="respaldo" data-respaldo><img src="respaldo/r-32.png" alt="Respaldo - Robustez al orden de activación"></section>
+<section class="respaldo" data-respaldo><img src="respaldo/r-33.png" alt="Respaldo - Competencia del oráculo"></section>
+<section class="respaldo" data-respaldo><img src="respaldo/r-34.png" alt="Respaldo - Observabilidad parcial"></section>
+<section class="respaldo" data-respaldo><img src="respaldo/r-35.png" alt="Respaldo - Gobernanza por presupuesto"></section>
+<section class="respaldo" data-respaldo><img src="respaldo/r-36.png" alt="Respaldo - El costo de preguntar"></section>
+<section class="respaldo" data-respaldo><img src="respaldo/r-37.png" alt="Respaldo - Mecanismo de los agentes que infieren"></section>
+<section class="respaldo" data-respaldo><img src="respaldo/r-38.png" alt="Respaldo - Las tiras completas"></section>
+<section class="respaldo" data-respaldo><img src="respaldo/r-39.png" alt="Respaldo - ABC en detalle"></section>
+<section class="respaldo" data-respaldo><img src="respaldo/r-40.png" alt="Respaldo - La frontera como criterio de decisión"></section>
+<section class="respaldo" data-respaldo><img src="respaldo/r-41.png" alt="Respaldo - Veredicto de las hipótesis"></section>
+
+</div></div>
+
+<div id="panel-control" aria-hidden="true"><div class="caja">
+  <h3 style="margin:0 0 .4em;font-size:22px">Control desde el celular</h3>
+  <div class="qr"></div>
+  <p style="font-size:15px;margin:.6em 0 .2em">Escanee con el celular. Toque la mitad derecha para avanzar y la izquierda para retroceder.</p>
+  <code class="url"></code>
+  <p style="font-size:13px;color:#666;margin-top:.8em">Q cierra este panel. Solo se ve en esta pantalla.</p>
+</div></div>
+<div id="aviso-conexion" title="Conexión con el servidor"></div>
+
+<script src="vendor/reveal/reveal.js"></script>
+<script src="vendor/reveal/notes/notes.js"></script>
+<script src="vendor/d3.min.js"></script>
+<script src="vendor/katex/katex.min.js"></script>
+<script src="vendor/katex/auto-render.min.js"></script>
+<script src="vendor/qrcode.min.js"></script>
+<script src="js/mundo.js"></script>
+<script src="js/graficas.js"></script>
+<script src="js/sincro.js"></script>
+<script src="js/deck.js"></script>
+</body>
+</html>

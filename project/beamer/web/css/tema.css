@@ -1,0 +1,234 @@
+/* tema.css — Midcentury Modern, tema DeepBlue (tema/beamerthememidcenturymodern.sty),
+   llevado a HTML. Diapositiva lógica de 1280 × 720 (16:9): Reveal la escala entera, así
+   que todo se mide en px de esa diapositiva. 1 cm del papel de beamer (16 × 9 cm) son
+   80 px; 1 pt son 2.82 px. */
+
+@font-face { font-family: "Heros"; src: url("../fuentes/texgyreheros-regular.otf"); font-weight: 400; font-style: normal; }
+@font-face { font-family: "Heros"; src: url("../fuentes/texgyreheros-bold.otf"); font-weight: 700; font-style: normal; }
+@font-face { font-family: "Heros"; src: url("../fuentes/texgyreheros-italic.otf"); font-weight: 400; font-style: italic; }
+@font-face { font-family: "Heros"; src: url("../fuentes/texgyreheros-bolditalic.otf"); font-weight: 700; font-style: italic; }
+@font-face { font-family: "Adventor"; src: url("../fuentes/texgyreadventor-regular.otf"); font-weight: 400; }
+@font-face { font-family: "Adventor"; src: url("../fuentes/texgyreadventor-bold.otf"); font-weight: 700; }
+@font-face { font-family: "Universalis"; src: url("../fuentes/UniversalisADFStd-Regular.otf"); }
+@font-face { font-family: "FiraMono"; src: url("../fuentes/FiraMono-Regular.otf"); font-weight: 400; }
+@font-face { font-family: "FiraMono"; src: url("../fuentes/FiraMono-Bold.otf"); font-weight: 700; }
+
+:root {
+  --primario: #002d4d;
+  --oscuro: #1a2a3b;
+  --acento: #BFE5EE;
+  --claro: #F5F5F5;
+  --fondo: #F8F6F2;
+  --tinta: #1A1A1A;
+  --tinta2: #55565a;
+  --gris: #8f8c86;
+  --grilla: #dcd8cf;
+  --rosa: #E8637D;
+  --ambar: #DB6720;
+  --menta: #4DB896;
+  /* bloques: mezclas del .sty (12 % y 35 % sobre el fondo, 75 % hacia negro) */
+  --alerta-cuerpo: #F6E4E4;
+  --alerta-banda: #F2C3C9;
+  --alerta-tinta: #AE4A5E;
+  --ejemplo-cuerpo: #E3EFE7;
+  --ejemplo-banda: #BCE0D2;
+  --ejemplo-tinta: #3A8A71;
+  /* una política, un color (beamer/figuras.py) */
+  --REFLEX: #0173b2;
+  --MODEL_BASED: #de8f05;
+  --OPEN_LOOP: #029e73;
+  --COLD_RESTART: #d55e00;
+  --CLOSED_LOOP: #cc78bc;
+  --GOVERNED: #ca9161;
+  --KNOWLEDGE_BASED: #56b4e9;
+  --BAYESIAN: #6a51c9;
+  --sans: "Heros", "Helvetica Neue", Helvetica, Arial, sans-serif;
+  --titulo: "Adventor", "Avenir Next", "Century Gothic", sans-serif;
+  --meta: "Universalis", "Heros", sans-serif;
+  --mono: "FiraMono", ui-monospace, Menlo, monospace;
+}
+
+html, body { background: var(--oscuro); }
+.reveal-viewport { background: var(--oscuro); }
+.reveal { font-family: var(--sans); font-size: 27px; color: var(--tinta); }
+.reveal .slides { text-align: left; }
+.reveal .slides > section, .reveal .slides > section > section {
+  padding: 0; height: 720px; width: 1280px; background: var(--fondo); overflow: hidden;
+}
+.reveal .slides section { line-height: 1.22; }
+.reveal p { margin: 0 0 0.45em; }
+.reveal b, .reveal strong { font-weight: 700; }
+.reveal code, .reveal .pol { font-family: var(--mono); font-size: 0.92em; }
+.reveal .katex { font-size: 1.04em; }
+
+/* --- marca de agua: la retícula clara al 6.7 % ----------------------------------- */
+.marco::before {
+  content: ""; position: absolute; inset: 0; z-index: 0; pointer-events: none;
+  background: url("../../figuras/marca.png") center / cover no-repeat; opacity: 0.067;
+}
+
+/* --- marco: banda de título, cuerpo, pie --------------------------------------- */
+.marco { position: absolute; inset: 0; }
+.marco > .titulo {
+  position: absolute; left: 0; right: 0; top: 0; height: 86px; z-index: 2;
+  background: var(--primario); color: var(--claro);
+  display: flex; align-items: center; padding: 0 44px;
+  font-family: var(--titulo); font-weight: 700; font-size: 33px; letter-spacing: 0.055em;
+  text-transform: uppercase; line-height: 1;
+}
+.marco > .cuerpo {
+  position: absolute; left: 44px; right: 44px; top: 112px; bottom: 50px; z-index: 1;
+}
+.marco > .cuerpo.centrado { display: flex; flex-direction: column; align-items: center; }
+.pie {
+  position: absolute; left: 0; right: 0; bottom: 0; height: 34px; z-index: 3;
+  display: grid; grid-template-columns: 1fr 1fr 1fr; align-items: center; padding: 0 22px;
+  font-size: 13.5px; color: var(--gris);
+}
+.pie span:nth-child(2) { text-align: center; }
+.pie span:nth-child(3) { text-align: right; }
+.pie b { color: var(--tinta2); }
+.pie .avance {
+  position: absolute; left: 0; bottom: 0; height: 3px; background: var(--primario);
+  transition: width 0.5s ease;
+}
+
+/* --- tamaños de beamer ------------------------------------------------------------ */
+.small { font-size: 25px; }
+.footnotesize { font-size: 22.5px; }
+.scriptsize { font-size: 19.5px; }
+.gris { color: rgba(26, 26, 26, 0.6); }
+.nota { font-size: 21px; color: rgba(26, 26, 26, 0.65); }
+.centro { text-align: center; }
+
+/* --- listas: guion del tema, números en el azul --------------------------------- */
+.reveal ul, .reveal ol { margin: 0.2em 0 0.4em; padding-left: 1.25em; }
+.reveal ul { list-style: none; }
+.reveal ul > li { position: relative; margin: 0.22em 0; }
+.reveal ul > li::before {
+  content: "–"; position: absolute; left: -0.95em; color: var(--primario); font-weight: 700;
+}
+.reveal ol { list-style: none; counter-reset: n; }
+.reveal ol > li { position: relative; margin: 0.3em 0; counter-increment: n; }
+.reveal ol > li::before {
+  content: counter(n); position: absolute; left: -1.15em; color: var(--primario); font-weight: 700;
+}
+
+/* --- columnas -------------------------------------------------------------------- */
+.cols { display: flex; gap: 30px; height: 100%; }
+.cols.arriba { align-items: flex-start; }
+.cols.medio { align-items: center; }
+.cols > div { min-width: 0; }
+
+/* --- bloques: plano (pip + título), alerta y ejemplo (banda + cuerpo) ---------- */
+.bloque { margin: 0.5em 0; }
+.bloque > h4 {
+  margin: 0; font-size: 1em; font-weight: 700; color: var(--primario);
+  display: flex; align-items: center; gap: 0.4em; text-transform: none; font-family: var(--sans);
+  letter-spacing: 0;
+}
+.bloque > h4::before { content: ""; width: 0.42em; height: 0.42em; background: var(--primario); }
+.bloque > div { padding: 0.15em 0 0; }
+.bloque.alerta > h4, .bloque.ejemplo > h4 { padding: 0.28em 0.45em; }
+.bloque.alerta > h4::before, .bloque.ejemplo > h4::before { display: none; }
+.bloque.alerta > div, .bloque.ejemplo > div { padding: 0.35em 0.45em 0.45em; }
+.bloque.alerta > h4 { background: var(--alerta-banda); color: var(--alerta-tinta); }
+.bloque.alerta > div { background: var(--alerta-cuerpo); }
+.bloque.ejemplo > h4 { background: var(--ejemplo-banda); color: var(--ejemplo-tinta); }
+.bloque.ejemplo > div { background: var(--ejemplo-cuerpo); }
+
+/* --- tablas booktabs --------------------------------------------------------------- */
+table.bt { border-collapse: collapse; margin: 0 auto; }
+table.bt th, table.bt td { padding: 0.16em 0.5em; text-align: left; vertical-align: top; border: 0; }
+table.bt thead th { font-weight: 700; border-top: 2px solid var(--tinta); border-bottom: 1px solid var(--tinta); padding-top: 0.3em; }
+table.bt tbody tr:last-child td { border-bottom: 2px solid var(--tinta); }
+table.bt tr.grupo td { color: rgba(26, 26, 26, 0.6); font-style: italic; padding-top: 0.4em; }
+table.bt tr.regla td { border-top: 1px solid var(--tinta); }
+table.bt td.num { text-align: right; font-variant-numeric: tabular-nums; }
+
+/* --- cifras grandes ----------------------------------------------------------------- */
+.cifras { display: flex; justify-content: space-between; margin: 18px 0 34px; }
+.cifra { width: 23.5%; text-align: center; }
+.cifra .n {
+  font-family: var(--titulo); font-weight: 700; font-size: 68px; color: var(--primario);
+  letter-spacing: 0.04em; font-variant-numeric: tabular-nums;
+}
+.cifra .r { font-size: 22px; color: rgba(26, 26, 26, 0.75); margin-top: 6px; }
+
+/* --- portada, relevos y cierre ------------------------------------------------- */
+.plena { position: absolute; inset: 0; overflow: hidden; background: var(--primario); }
+.plena .foto {
+  position: absolute; inset: -3%; background: url("../../figuras/portada.png") center / cover;
+  animation: deriva 40s ease-in-out infinite alternate;
+}
+.plena canvas.vivo { position: absolute; inset: 0; width: 100%; height: 100%; }
+.plena .velo { position: absolute; inset: 0; background: var(--primario); }
+@keyframes deriva {
+  from { transform: scale(1) translate(0, 0); }
+  to { transform: scale(1.06) translate(-1.2%, 0.8%); }
+}
+.relevo .texto { position: absolute; left: 112px; top: 50%; transform: translateY(-50%); width: 920px; }
+.relevo .parte {
+  font-family: var(--meta); font-size: 20px; letter-spacing: 0.22em; color: var(--acento);
+}
+.relevo .raya { width: 176px; height: 2px; background: var(--acento); margin: 16px 0 22px; transform-origin: left; }
+.relevo h2 {
+  font-family: var(--titulo); font-weight: 400; font-size: 62px; letter-spacing: 0.06em;
+  color: var(--claro); text-transform: uppercase; margin: 0 0 16px; line-height: 1.05;
+}
+.relevo .bajada { font-size: 28px; color: var(--acento); }
+
+.portada .bloque-titulo { position: absolute; right: 56px; top: 82px; width: 1000px; text-align: right; color: var(--claro); }
+.portada h1 {
+  font-family: var(--titulo); font-weight: 700; font-size: 52px; line-height: 1.08;
+  letter-spacing: 0.07em; text-transform: uppercase; margin: 0;
+}
+.portada .sub { font-family: var(--titulo); font-size: 22px; letter-spacing: 0.08em; text-transform: uppercase; margin-top: 12px; }
+.portada .linea { width: 160px; height: 1.5px; background: var(--claro); margin: 34px 0 30px auto; }
+.portada .autor { font-family: var(--titulo); font-size: 26px; letter-spacing: 0.1em; text-transform: uppercase; }
+.portada .meta { font-family: var(--meta); font-size: 17px; letter-spacing: 0.12em; text-transform: uppercase; line-height: 1.45; margin-top: 10px; }
+.portada .meta.fecha { margin-top: 22px; }
+.portada .base {
+  position: absolute; left: 0; right: 0; bottom: 0; height: 130px; background: var(--fondo);
+  background-image: repeating-linear-gradient(to bottom, transparent 0 15px, rgba(0, 45, 77, 0.55) 15px 16.5px);
+  background-size: 1110px 100%; background-repeat: no-repeat; background-position: 26px 22px;
+}
+.portada .base img { position: absolute; right: 40px; top: 30px; height: 70px; }
+
+/* --- figuras y gráficas ------------------------------------------------------------ */
+.fig { display: block; margin: 0 auto; max-width: 100%; }
+.grafica { position: relative; margin: 0 auto; }
+.grafica svg { display: block; overflow: visible; font-family: var(--sans); }
+.grafica .eje text { font-size: 17px; fill: var(--tinta2); }
+.grafica .eje path, .grafica .eje line { stroke: var(--gris); stroke-width: 1; }
+.grafica .rejilla line { stroke: var(--grilla); stroke-width: 1; }
+.grafica .rejilla path { display: none; }
+.grafica .rot { font-size: 18px; fill: var(--tinta); }
+.grafica .tit { font-size: 19px; font-weight: 700; fill: var(--primario); }
+.grafica .anota { font-size: 17px; fill: var(--tinta2); }
+.grafica .fuerte { font-weight: 700; fill: var(--tinta); }
+.leyenda { display: flex; flex-wrap: wrap; justify-content: center; gap: 4px 20px; font-size: 16.5px; margin-bottom: 4px; }
+.leyenda span { display: inline-flex; align-items: center; gap: 6px; font-family: var(--mono); font-size: 15px; }
+.leyenda i { display: inline-block; width: 22px; height: 3px; border-radius: 2px; }
+
+/* --- mundo (canvas) --------------------------------------------------------------- */
+.mundo { position: relative; }
+.mundo canvas { display: block; width: 100%; height: auto; }
+.mundo .estado { font-size: 17px; color: var(--tinta2); font-variant-numeric: tabular-nums; text-align: center; margin-top: 4px; }
+
+/* --- panel privado del presentador (tecla Q) ------------------------------------ */
+#panel-control {
+  position: fixed; inset: 0; z-index: 50; display: none; place-items: center;
+  background: rgba(10, 20, 30, 0.86); color: #fff; font-family: var(--sans);
+}
+#panel-control.visible { display: grid; }
+#panel-control .caja { background: var(--fondo); color: var(--tinta); padding: 28px 34px; border-radius: 6px; text-align: center; max-width: 92vw; }
+#panel-control .qr svg, #panel-control .qr img { width: 300px; height: 300px; }
+#panel-control code { font-size: 14px; word-break: break-all; }
+#aviso-conexion {
+  position: fixed; right: 8px; top: 8px; z-index: 40; width: 8px; height: 8px; border-radius: 50%;
+  background: #b0aca4; opacity: 0.7;
+}
+#aviso-conexion.vivo { background: var(--menta); }
+
+.quieto .plena .foto { animation: none; }
